@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/site/Logo";
@@ -6,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
+import { useAuth } from "@/lib/auth";
 import recipeImage from "@/assets/recipe-1.jpg";
 
 export const Route = createFileRoute("/cadastro")({
@@ -17,14 +20,47 @@ export const Route = createFileRoute("/cadastro")({
         content: "Crie sua conta gratuita e comece a avaliar receitas por critérios objetivos.",
       },
       { property: "og:title", content: "Criar conta — Cookie" },
-      { property: "og:description", content: "Junte-se à comunidade que testa receitas de verdade." },
+      {
+        property: "og:description",
+        content: "Junte-se à comunidade que testa receitas de verdade.",
+      },
     ],
   }),
   component: CadastroPage,
 });
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type Errors = Partial<Record<"nome" | "email" | "senha" | "termos" | "form", string>>;
+
 function CadastroPage() {
   const navigate = useNavigate();
+  const { signup } = useAuth();
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [termos, setTermos] = useState(false);
+  const [errors, setErrors] = useState<Errors>({});
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const next: Errors = {};
+    if (nome.trim().length < 2) next.nome = "Informe seu nome.";
+    if (!EMAIL_RE.test(email.trim())) next.email = "Informe um e-mail válido.";
+    if (senha.length < 8) next.senha = "A senha precisa ter pelo menos 8 caracteres.";
+    if (!termos) next.termos = "É preciso aceitar os termos para criar a conta.";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    const result = signup({ name: nome, email });
+    if (!result.ok) {
+      setErrors({ form: result.error });
+      return;
+    }
+    toast.success("Conta criada!", { description: "Complete seu perfil nas configurações." });
+    navigate({ to: "/perfil", replace: true });
+  };
+
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="flex flex-col justify-center px-6 py-12 sm:px-16">
@@ -35,42 +71,77 @@ function CadastroPage() {
             Leva menos de um minuto e é gratuito.
           </p>
 
-          <form
-            className="mt-8 space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              toast.success("Conta criada (protótipo)");
-              navigate({ to: "/perfil" });
-            }}
-          >
+          <form className="mt-8 space-y-4" noValidate onSubmit={submit}>
             <div>
               <Label htmlFor="nome">Nome</Label>
-              <Input id="nome" placeholder="Seu nome" className="mt-2 h-11 rounded-xl bg-card" />
+              <Input
+                id="nome"
+                autoComplete="name"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+                aria-invalid={Boolean(errors.nome)}
+                placeholder="Seu nome"
+                className="mt-2 h-11 rounded-xl bg-card"
+              />
+              <FieldError>{errors.nome}</FieldError>
             </div>
             <div>
               <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                aria-invalid={Boolean(errors.email)}
                 placeholder="voce@email.com"
                 className="mt-2 h-11 rounded-xl bg-card"
               />
+              <FieldError>{errors.email}</FieldError>
             </div>
             <div>
               <Label htmlFor="senha">Senha</Label>
-              <Input
+              <PasswordInput
                 id="senha"
-                type="password"
+                autoComplete="new-password"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                aria-invalid={Boolean(errors.senha)}
                 placeholder="Mínimo de 8 caracteres"
                 className="mt-2 h-11 rounded-xl bg-card"
               />
+              <FieldError>{errors.senha}</FieldError>
             </div>
-            <div className="flex items-start gap-2.5 pt-1">
-              <Checkbox id="termos" className="mt-0.5" />
-              <Label htmlFor="termos" className="text-xs font-normal leading-relaxed text-muted-foreground">
-                Concordo com os termos de uso e com a política de avaliações honestas da comunidade.
-              </Label>
+            <div>
+              <div className="flex items-start gap-2.5 pt-1">
+                <Checkbox
+                  id="termos"
+                  className="mt-0.5"
+                  checked={termos}
+                  onCheckedChange={(v) => setTermos(v === true)}
+                  aria-invalid={Boolean(errors.termos)}
+                />
+                <Label
+                  htmlFor="termos"
+                  className="text-xs font-normal leading-relaxed text-muted-foreground"
+                >
+                  Concordo com os termos de uso e com a política de avaliações honestas da
+                  comunidade.
+                </Label>
+              </div>
+              <FieldError>{errors.termos}</FieldError>
             </div>
+            {errors.form && (
+              <p
+                role="alert"
+                className="rounded-xl bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+              >
+                {errors.form}{" "}
+                <Link to="/entrar" className="font-semibold underline">
+                  Entrar
+                </Link>
+              </p>
+            )}
             <Button type="submit" className="h-11 w-full rounded-full">
               Criar conta
             </Button>

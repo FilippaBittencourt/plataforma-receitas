@@ -103,7 +103,13 @@ export const recipes: Recipe[] = [
       "Porcione bolas de 60 g e asse a 180 °C por 11 a 13 minutos.",
       "Finalize com flor de sal e deixe firmar 10 minutos na assadeira.",
     ],
-    criteria: baseCriteria({ medidas: 4.9, tempo: 4.7, rendimento: 4.8, clareza: 4.9, resultado: 5 }),
+    criteria: baseCriteria({
+      medidas: 4.9,
+      tempo: 4.7,
+      rendimento: 4.8,
+      clareza: 4.9,
+      resultado: 5,
+    }),
     communityPhotos: [recipe1, recipe4, recipe6, recipe1],
     reviews: [
       {
@@ -173,7 +179,13 @@ export const recipes: Recipe[] = [
       "Adicione o caldo em conchas, mexendo, por cerca de 17 minutos.",
       "Desligue o fogo e mantecate com manteiga gelada e parmesão.",
     ],
-    criteria: baseCriteria({ medidas: 4.6, tempo: 4.2, rendimento: 4.6, clareza: 4.8, resultado: 4.8 }),
+    criteria: baseCriteria({
+      medidas: 4.6,
+      tempo: 4.2,
+      rendimento: 4.6,
+      clareza: 4.8,
+      resultado: 4.8,
+    }),
     communityPhotos: [recipe2, recipe5, recipe2],
     reviews: [
       {
@@ -228,7 +240,13 @@ export const recipes: Recipe[] = [
       "Modele, coloque no banneton e leve à geladeira por 12 a 16 horas.",
       "Asse em panela de ferro a 250 °C: 20 minutos tampado, 20 minutos destampado.",
     ],
-    criteria: baseCriteria({ medidas: 4.7, tempo: 3.9, rendimento: 4.5, clareza: 4.4, resultado: 4.6 }),
+    criteria: baseCriteria({
+      medidas: 4.7,
+      tempo: 3.9,
+      rendimento: 4.5,
+      clareza: 4.4,
+      resultado: 4.6,
+    }),
     communityPhotos: [recipe3, recipe3],
     reviews: [
       {
@@ -271,7 +289,13 @@ export const recipes: Recipe[] = [
       "Incorpore o chocolate fora do fogo e volte por 2 minutos.",
       "Resfrie por 3 horas em superfície fria antes de enrolar.",
     ],
-    criteria: baseCriteria({ medidas: 4.8, tempo: 4.6, rendimento: 4.7, clareza: 4.9, resultado: 4.9 }),
+    criteria: baseCriteria({
+      medidas: 4.8,
+      tempo: 4.6,
+      rendimento: 4.7,
+      clareza: 4.9,
+      resultado: 4.9,
+    }),
     communityPhotos: [recipe4, recipe4, recipe1],
     reviews: [
       {
@@ -317,7 +341,13 @@ export const recipes: Recipe[] = [
       "Prepare o béchamel e tempere com noz-moscada.",
       "Monte 5 camadas e asse a 190 °C por 40 minutos.",
     ],
-    criteria: baseCriteria({ medidas: 4.4, tempo: 4.1, rendimento: 4.6, clareza: 4.5, resultado: 4.8 }),
+    criteria: baseCriteria({
+      medidas: 4.4,
+      tempo: 4.1,
+      rendimento: 4.6,
+      clareza: 4.5,
+      resultado: 4.8,
+    }),
     communityPhotos: [recipe5, recipe5],
     reviews: [
       {
@@ -362,7 +392,13 @@ export const recipes: Recipe[] = [
       "Faça o merengue suíço a 65 °C e cubra a torta.",
       "Doure levemente com maçarico.",
     ],
-    criteria: baseCriteria({ medidas: 4.2, tempo: 4.3, rendimento: 4.4, clareza: 4.3, resultado: 4.6 }),
+    criteria: baseCriteria({
+      medidas: 4.2,
+      tempo: 4.3,
+      rendimento: 4.4,
+      clareza: 4.3,
+      resultado: 4.6,
+    }),
     communityPhotos: [recipe6, recipe6],
     reviews: [
       {
@@ -391,14 +427,85 @@ export function getRecipe(id: string) {
   return recipes.find((r) => r.id === id);
 }
 
-export const currentUser = {
-  name: "Júlia Ferraz",
-  handle: "@juliaferraz",
-  initials: "JF",
-  bio: "Testo receitas nos fins de semana e anoto tudo. Confio em medidas em gramas.",
-  since: "Membro desde 2024",
-  stats: { publicadas: 12, avaliacoes: 87, testadas: 64, seguidores: 1240 },
+export type Role = "membro" | "moderador";
+
+export type Account = {
+  id: string;
+  name: string;
+  handle: string;
+  email: string;
+  bio: string;
+  since: string;
+  role: Role;
+  stats: { publicadas: number; avaliacoes: number; testadas: number; seguidores: number };
+  publishedIds: string[];
+  testedIds: string[];
+  notifications: { avaliacoes: boolean; comentarios: boolean; novidades: boolean };
 };
+
+// Contas de demonstração: qualquer senha funciona no protótipo.
+export const demoAccounts: Account[] = [
+  {
+    id: "u-julia",
+    name: "Júlia Ferraz",
+    handle: "@juliaferraz",
+    email: "julia@cookie.com",
+    bio: "Testo receitas nos fins de semana e anoto tudo. Confio em medidas em gramas.",
+    since: "Membro desde 2024",
+    role: "membro",
+    stats: { publicadas: 12, avaliacoes: 87, testadas: 64, seguidores: 1240 },
+    publishedIds: ["cookies-caramelo", "risoto-funghi"],
+    testedIds: ["pao-rustico", "brigadeiro-belga", "lasanha-domingo"],
+    notifications: { avaliacoes: true, comentarios: true, novidades: false },
+  },
+  {
+    id: "u-moderacao",
+    name: "Equipe de Moderação",
+    handle: "@moderacao",
+    email: "moderacao@cookie.com",
+    bio: "Curadoria de receitas, fotos e links externos.",
+    since: "Membro desde 2023",
+    role: "moderador",
+    stats: { publicadas: 0, avaliacoes: 312, testadas: 140, seguidores: 86 },
+    publishedIds: [],
+    testedIds: ["cookies-caramelo", "torta-limao"],
+    notifications: { avaliacoes: false, comentarios: true, novidades: true },
+  },
+];
+
+export function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+  return (first + last).toUpperCase() || "?";
+}
+
+export const moderationUsers = [
+  {
+    id: "mu1",
+    name: "usuario_2381",
+    handle: "@usuario_2381",
+    reports: 4,
+    reason: "Comentários ofensivos em 3 receitas",
+    status: "ativo" as const,
+  },
+  {
+    id: "mu2",
+    name: "Receitas Rápidas BR",
+    handle: "@receitasrapidasbr",
+    reports: 2,
+    reason: "Links externos repetidos (possível spam)",
+    status: "ativo" as const,
+  },
+  {
+    id: "mu3",
+    name: "Gustavo Lemos",
+    handle: "@gustavolemos",
+    reports: 1,
+    reason: "Avaliações negativas sem ter testado",
+    status: "suspenso" as const,
+  },
+];
 
 export const moderationQueue = [
   {

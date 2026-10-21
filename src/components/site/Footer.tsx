@@ -1,7 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { Logo } from "./Logo";
+import { useAuth } from "@/lib/auth";
 
 export function Footer() {
+  const { user } = useAuth();
+
   return (
     <footer className="mt-24 border-t border-border bg-cream">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-12 sm:flex-row sm:items-start sm:justify-between">
@@ -14,7 +17,11 @@ export function Footer() {
         <div className="flex gap-12 text-sm">
           <div className="space-y-2">
             <p className="font-semibold text-foreground">Explorar</p>
-            <Link to="/buscar" search={{ q: "" }} className="block text-muted-foreground hover:text-foreground">
+            <Link
+              to="/buscar"
+              search={{ q: "" }}
+              className="block text-muted-foreground hover:text-foreground"
+            >
               Buscar
             </Link>
             <Link to="/ranking" className="block text-muted-foreground hover:text-foreground">
@@ -29,9 +36,11 @@ export function Footer() {
             <Link to="/compartilhar" className="block text-muted-foreground hover:text-foreground">
               Indicar link
             </Link>
-            <Link to="/admin" className="block text-muted-foreground hover:text-foreground">
-              Moderação
-            </Link>
+            {user?.role === "moderador" && (
+              <Link to="/admin" className="block text-muted-foreground hover:text-foreground">
+                Moderação
+              </Link>
+            )}
           </div>
         </div>
       </div>
