@@ -169,8 +169,10 @@ function RecipePage() {
                   Avaliar receita
                 </Link>
               </Button>
-              <Button variant="outline" className="h-11 rounded-full px-6">
-                <Camera width={16} height={16} /> Enviar foto do resultado
+              <Button asChild variant="outline" className="h-11 rounded-full px-6">
+                <Link to="/receita/$recipeId/avaliar" params={{ recipeId: recipe.id }} hash="foto">
+                  <Camera width={16} height={16} /> Enviar foto do resultado
+                </Link>
               </Button>
             </div>
           </div>
@@ -183,7 +185,10 @@ function RecipePage() {
               <h2 className="text-2xl font-semibold text-foreground">Ingredientes</h2>
               <ul className="mt-5 divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
                 {recipe.ingredients.map((i) => (
-                  <li key={i} className="flex items-start gap-3 px-5 py-3.5 text-sm text-foreground">
+                  <li
+                    key={i}
+                    className="flex items-start gap-3 px-5 py-3.5 text-sm text-foreground"
+                  >
                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-caramel" />
                     {i}
                   </li>
@@ -236,9 +241,7 @@ function RecipePage() {
             <section className="mt-12">
               <div className="flex items-center gap-2">
                 <MessageCircle width={18} height={18} className="text-caramel" />
-                <h2 className="text-2xl font-semibold text-foreground">
-                  Comentários e avaliações
-                </h2>
+                <h2 className="text-2xl font-semibold text-foreground">Comentários e avaliações</h2>
               </div>
               <div className="mt-5 space-y-4">
                 {recipe.reviews.map((rev) => (

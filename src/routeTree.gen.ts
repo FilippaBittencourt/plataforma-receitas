@@ -14,12 +14,14 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as BuscarRouteImport } from './routes/buscar'
 import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as CompartilharRouteImport } from './routes/compartilhar'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PublicarRouteImport } from './routes/publicar'
 import { Route as RankingRouteImport } from './routes/ranking'
+import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as ReceitaRecipeIdRouteImport } from './routes/receita.$recipeId'
-import { Route as ReceitaRecipeIdAvaliarRouteImport } from './routes/receita.$recipeId.avaliar'
+import { Route as ReceitaRecipeIdAvaliarRouteImport } from './routes/receita.$recipeId_.avaliar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +48,11 @@ const CompartilharRoute = CompartilharRouteImport.update({
   path: '/compartilhar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
@@ -66,15 +73,20 @@ const RankingRoute = RankingRouteImport.update({
   path: '/ranking',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
+  id: '/recuperar-senha',
+  path: '/recuperar-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReceitaRecipeIdRoute = ReceitaRecipeIdRouteImport.update({
   id: '/receita/$recipeId',
   path: '/receita/$recipeId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReceitaRecipeIdAvaliarRoute = ReceitaRecipeIdAvaliarRouteImport.update({
-  id: '/avaliar',
-  path: '/avaliar',
-  getParentRoute: () => ReceitaRecipeIdRoute,
+  id: '/receita/$recipeId_/avaliar',
+  path: '/receita/$recipeId/avaliar',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -83,11 +95,13 @@ export interface FileRoutesByFullPath {
   '/buscar': typeof BuscarRoute
   '/cadastro': typeof CadastroRoute
   '/compartilhar': typeof CompartilharRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/entrar': typeof EntrarRoute
   '/perfil': typeof PerfilRoute
   '/publicar': typeof PublicarRoute
   '/ranking': typeof RankingRoute
-  '/receita/$recipeId': typeof ReceitaRecipeIdRouteWithChildren
+  '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/receita/$recipeId': typeof ReceitaRecipeIdRoute
   '/receita/$recipeId/avaliar': typeof ReceitaRecipeIdAvaliarRoute
 }
 export interface FileRoutesByTo {
@@ -96,11 +110,13 @@ export interface FileRoutesByTo {
   '/buscar': typeof BuscarRoute
   '/cadastro': typeof CadastroRoute
   '/compartilhar': typeof CompartilharRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/entrar': typeof EntrarRoute
   '/perfil': typeof PerfilRoute
   '/publicar': typeof PublicarRoute
   '/ranking': typeof RankingRoute
-  '/receita/$recipeId': typeof ReceitaRecipeIdRouteWithChildren
+  '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/receita/$recipeId': typeof ReceitaRecipeIdRoute
   '/receita/$recipeId/avaliar': typeof ReceitaRecipeIdAvaliarRoute
 }
 export interface FileRoutesById {
@@ -110,12 +126,14 @@ export interface FileRoutesById {
   '/buscar': typeof BuscarRoute
   '/cadastro': typeof CadastroRoute
   '/compartilhar': typeof CompartilharRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/entrar': typeof EntrarRoute
   '/perfil': typeof PerfilRoute
   '/publicar': typeof PublicarRoute
   '/ranking': typeof RankingRoute
-  '/receita/$recipeId': typeof ReceitaRecipeIdRouteWithChildren
-  '/receita/$recipeId/avaliar': typeof ReceitaRecipeIdAvaliarRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/receita/$recipeId': typeof ReceitaRecipeIdRoute
+  '/receita/$recipeId_/avaliar': typeof ReceitaRecipeIdAvaliarRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -125,10 +143,12 @@ export interface FileRouteTypes {
     | '/buscar'
     | '/cadastro'
     | '/compartilhar'
+    | '/configuracoes'
     | '/entrar'
     | '/perfil'
     | '/publicar'
     | '/ranking'
+    | '/recuperar-senha'
     | '/receita/$recipeId'
     | '/receita/$recipeId/avaliar'
   fileRoutesByTo: FileRoutesByTo
@@ -138,10 +158,12 @@ export interface FileRouteTypes {
     | '/buscar'
     | '/cadastro'
     | '/compartilhar'
+    | '/configuracoes'
     | '/entrar'
     | '/perfil'
     | '/publicar'
     | '/ranking'
+    | '/recuperar-senha'
     | '/receita/$recipeId'
     | '/receita/$recipeId/avaliar'
   id:
@@ -151,12 +173,14 @@ export interface FileRouteTypes {
     | '/buscar'
     | '/cadastro'
     | '/compartilhar'
+    | '/configuracoes'
     | '/entrar'
     | '/perfil'
     | '/publicar'
     | '/ranking'
+    | '/recuperar-senha'
     | '/receita/$recipeId'
-    | '/receita/$recipeId/avaliar'
+    | '/receita/$recipeId_/avaliar'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -165,11 +189,14 @@ export interface RootRouteChildren {
   BuscarRoute: typeof BuscarRoute
   CadastroRoute: typeof CadastroRoute
   CompartilharRoute: typeof CompartilharRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRoute
   EntrarRoute: typeof EntrarRoute
   PerfilRoute: typeof PerfilRoute
   PublicarRoute: typeof PublicarRoute
   RankingRoute: typeof RankingRoute
-  ReceitaRecipeIdRoute: typeof ReceitaRecipeIdRouteWithChildren
+  RecuperarSenhaRoute: typeof RecuperarSenhaRoute
+  ReceitaRecipeIdRoute: typeof ReceitaRecipeIdRoute
+  ReceitaRecipeIdAvaliarRoute: typeof ReceitaRecipeIdAvaliarRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -209,6 +236,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CompartilharRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entrar': {
       id: '/entrar'
       path: '/entrar'
@@ -237,6 +271,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RankingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recuperar-senha': {
+      id: '/recuperar-senha'
+      path: '/recuperar-senha'
+      fullPath: '/recuperar-senha'
+      preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/receita/$recipeId': {
       id: '/receita/$recipeId'
       path: '/receita/$recipeId'
@@ -244,27 +285,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReceitaRecipeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/receita/$recipeId/avaliar': {
-      id: '/receita/$recipeId/avaliar'
-      path: '/avaliar'
+    '/receita/$recipeId_/avaliar': {
+      id: '/receita/$recipeId_/avaliar'
+      path: '/receita/$recipeId/avaliar'
       fullPath: '/receita/$recipeId/avaliar'
       preLoaderRoute: typeof ReceitaRecipeIdAvaliarRouteImport
-      parentRoute: typeof ReceitaRecipeIdRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
-
-interface ReceitaRecipeIdRouteChildren {
-  ReceitaRecipeIdAvaliarRoute: typeof ReceitaRecipeIdAvaliarRoute
-}
-
-const ReceitaRecipeIdRouteChildren: ReceitaRecipeIdRouteChildren = {
-  ReceitaRecipeIdAvaliarRoute: ReceitaRecipeIdAvaliarRoute,
-}
-
-const ReceitaRecipeIdRouteWithChildren = ReceitaRecipeIdRoute._addFileChildren(
-  ReceitaRecipeIdRouteChildren,
-)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -272,11 +301,14 @@ const rootRouteChildren: RootRouteChildren = {
   BuscarRoute: BuscarRoute,
   CadastroRoute: CadastroRoute,
   CompartilharRoute: CompartilharRoute,
+  ConfiguracoesRoute: ConfiguracoesRoute,
   EntrarRoute: EntrarRoute,
   PerfilRoute: PerfilRoute,
   PublicarRoute: PublicarRoute,
   RankingRoute: RankingRoute,
-  ReceitaRecipeIdRoute: ReceitaRecipeIdRouteWithChildren,
+  RecuperarSenhaRoute: RecuperarSenhaRoute,
+  ReceitaRecipeIdRoute: ReceitaRecipeIdRoute,
+  ReceitaRecipeIdAvaliarRoute: ReceitaRecipeIdAvaliarRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
