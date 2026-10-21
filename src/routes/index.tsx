@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowRight, BadgeCheck, Camera, Ruler, Search, Timer } from "lucide-react";
 import heroImage from "@/assets/hero-food.jpg";
 import { Shell } from "@/components/site/Shell";
+import { CategoryIcon } from "@/components/site/CategoryIcon";
 import { RecipeCard } from "@/components/site/RecipeCard";
 import { Button } from "@/components/ui/button";
 import { categories, recipes } from "@/lib/mock-data";
@@ -46,8 +47,8 @@ function Home() {
               <span className="text-terracotta">realmente funcionam</span>.
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground">
-              Cada receita é avaliada por precisão das medidas, tempo de preparo, rendimento, clareza
-              das instruções e resultado final — por quem cozinhou de verdade.
+              Cada receita é avaliada por precisão das medidas, tempo de preparo, rendimento,
+              clareza das instruções e resultado final — por quem cozinhou de verdade.
             </p>
 
             <form
@@ -81,7 +82,9 @@ function Home() {
               ].map((s) => (
                 <div key={s.label}>
                   <p className="font-display text-2xl font-semibold text-foreground">{s.value}</p>
-                  <p className="max-w-[9rem] text-xs leading-snug text-muted-foreground">{s.label}</p>
+                  <p className="max-w-[9rem] text-xs leading-snug text-muted-foreground">
+                    {s.label}
+                  </p>
                 </div>
               ))}
             </div>
@@ -112,9 +115,21 @@ function Home() {
       <section className="mx-auto mt-24 max-w-6xl px-5">
         <div className="grid gap-4 rounded-3xl border border-border bg-cream p-6 sm:grid-cols-3 sm:p-8">
           {[
-            { icon: Ruler, title: "Medidas conferidas", text: "Quem cozinhou diz se as quantidades batem." },
-            { icon: Timer, title: "Tempo real", text: "Comparação entre o tempo informado e o praticado." },
-            { icon: Camera, title: "Fotos do resultado", text: "Sem foto de estúdio: o prato como ele sai." },
+            {
+              icon: Ruler,
+              title: "Medidas conferidas",
+              text: "Quem cozinhou diz se as quantidades batem.",
+            },
+            {
+              icon: Timer,
+              title: "Tempo real",
+              text: "Comparação entre o tempo informado e o praticado.",
+            },
+            {
+              icon: Camera,
+              title: "Fotos do resultado",
+              text: "Sem foto de estúdio: o prato como ele sai.",
+            },
           ].map((f) => (
             <div key={f.title} className="flex gap-3">
               <f.icon width={20} height={20} className="mt-0.5 shrink-0 text-caramel" />
@@ -136,9 +151,11 @@ function Home() {
               key={c.id}
               to="/buscar"
               search={{ q: c.label }}
-              className="rounded-2xl border border-border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lifted"
+              className="group rounded-2xl border border-border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lifted"
             >
-              <span className="text-2xl">{c.emoji}</span>
+              <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-cream text-primary transition-colors group-hover:bg-sand/60">
+                <CategoryIcon id={c.id} size={26} />
+              </span>
               <p className="mt-2 text-sm font-semibold text-foreground">{c.label}</p>
               <p className="text-xs text-muted-foreground">{c.count} receitas</p>
             </Link>

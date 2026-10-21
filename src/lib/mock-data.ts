@@ -49,12 +49,12 @@ export type Recipe = {
 };
 
 export const categories = [
-  { id: "doces", label: "Doces", emoji: "🍮", count: 482 },
-  { id: "paes", label: "Pães", emoji: "🥖", count: 213 },
-  { id: "massas", label: "Massas", emoji: "🍝", count: 318 },
-  { id: "carnes", label: "Carnes", emoji: "🥩", count: 264 },
-  { id: "vegetariano", label: "Vegetariano", emoji: "🥗", count: 197 },
-  { id: "bebidas", label: "Bebidas", emoji: "🧉", count: 124 },
+  { id: "doces", label: "Doces", count: 482 },
+  { id: "paes", label: "Pães", count: 213 },
+  { id: "massas", label: "Massas", count: 318 },
+  { id: "carnes", label: "Carnes", count: 264 },
+  { id: "vegetariano", label: "Vegetariano", count: 197 },
+  { id: "bebidas", label: "Bebidas", count: 124 },
 ];
 
 const baseCriteria = (c: Partial<Criteria> = {}): Criteria => ({
