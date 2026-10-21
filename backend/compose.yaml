@@ -1,0 +1,15 @@
+# Banco de desenvolvimento. O Spring Boot sobe este container sozinho ao rodar a aplicação.
+services:
+  postgres:
+    image: 'postgres:16-alpine'
+    environment:
+      - 'POSTGRES_DB=cookie'
+      - 'POSTGRES_USER=cookie'
+      - 'POSTGRES_PASSWORD=cookie'
+    ports:
+      - '5433:5432'
+    volumes:
+      - 'cookie-dados:/var/lib/postgresql/data'
+
+volumes:
+  cookie-dados:
