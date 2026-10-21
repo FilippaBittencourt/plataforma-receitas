@@ -32,14 +32,18 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {recipe.category}
           </p>
-          <h3 className="mt-1 text-lg font-semibold leading-snug text-foreground">{recipe.title}</h3>
+          <h3 className="mt-1 text-lg font-semibold leading-snug text-foreground">
+            {recipe.title}
+          </h3>
           <p className="mt-1 text-sm text-muted-foreground">por {recipe.author}</p>
         </div>
 
         <div className="mt-auto space-y-3">
           <div className="flex items-center gap-2">
             <Stars value={recipe.rating} />
-            <span className="text-sm font-semibold text-foreground">{recipe.rating.toFixed(1)}</span>
+            <span className="text-sm font-semibold text-foreground">
+              {recipe.rating.toFixed(1)}
+            </span>
             <span className="text-sm text-muted-foreground">({recipe.reviewsCount})</span>
           </div>
 

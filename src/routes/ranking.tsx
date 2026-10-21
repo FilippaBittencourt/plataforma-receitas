@@ -17,7 +17,10 @@ export const Route = createFileRoute("/ranking")({
           "As receitas com maior nota, maior taxa de sucesso e maior número de testes da comunidade.",
       },
       { property: "og:title", content: "Ranking das receitas mais confiáveis — Cookie" },
-      { property: "og:description", content: "Classificação por sucesso real, não por popularidade." },
+      {
+        property: "og:description",
+        content: "Classificação por sucesso real, não por popularidade.",
+      },
     ],
   }),
   component: RankingPage,
@@ -78,9 +81,7 @@ function RankingPage() {
                 <span
                   className={cn(
                     "flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-lg font-semibold",
-                    i === 0
-                      ? "bg-caramel text-primary-foreground"
-                      : "bg-secondary text-foreground",
+                    i === 0 ? "bg-caramel text-primary-foreground" : "bg-secondary text-foreground",
                   )}
                 >
                   {i + 1}
