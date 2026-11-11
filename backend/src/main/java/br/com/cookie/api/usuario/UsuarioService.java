@@ -17,6 +17,7 @@ import br.com.cookie.api.usuario.UsuarioDtos.AlterarEmailRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.AlterarSenhaRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.AtualizarPerfilRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.CadastroRequest;
+import br.com.cookie.api.usuario.UsuarioDtos.CodigoRecuperacaoResponse;
 import br.com.cookie.api.usuario.UsuarioDtos.Estatisticas;
 import br.com.cookie.api.usuario.UsuarioDtos.LoginRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.Notificacoes;
@@ -32,14 +33,16 @@ public class UsuarioService {
     private final AvaliacaoRepository avaliacoes;
     private final PasswordEncoder senhas;
     private final TokenService tokens;
+    private final CodigoRecuperacaoService codigosRecuperacao;
 
     public UsuarioService(UsuarioRepository usuarios, ReceitaRepository receitas, AvaliacaoRepository avaliacoes,
-            PasswordEncoder senhas, TokenService tokens) {
+            PasswordEncoder senhas, TokenService tokens, CodigoRecuperacaoService codigosRecuperacao) {
         this.usuarios = usuarios;
         this.receitas = receitas;
         this.avaliacoes = avaliacoes;
         this.senhas = senhas;
         this.tokens = tokens;
+        this.codigosRecuperacao = codigosRecuperacao;
     }
 
     /** Dono do token. Se a conta foi excluída depois do login, o token deixa de valer. */
@@ -74,11 +77,14 @@ public class UsuarioService {
         } else {
             nomeUsuario = gerarNomeUsuario(req.nome());
         }
-        var usuario = usuarios.save(new Usuario(req.nome().trim(), nomeUsuario, email, senhas.encode(req.senha())));
-        return emitirToken(usuario);
+        String codigo = codigosRecuperacao.gerar();
+        var usuario = new Usuario(req.nome().trim(), nomeUsuario, email, senhas.encode(req.senha()));
+        usuario.setCodigoRecuperacaoHash(codigosRecuperacao.hash(codigo));
+        usuario = usuarios.save(usuario);
+        return emitirToken(usuario, codigo);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TokenResponse entrar(LoginRequest req) {
         var usuario = usuarios.findByEmail(normalizarEmail(req.email()))
                 .filter(u -> senhas.matches(req.senha(), u.getSenhaHash()))
@@ -86,7 +92,36 @@ public class UsuarioService {
         if (usuario.isSuspenso()) {
             throw ApiException.proibido("Sua conta está suspensa pela moderação.");
         }
-        return emitirToken(usuario);
+        String codigo = null;
+        if (usuario.getCodigoRecuperacaoHash() == null) {
+            codigo = codigosRecuperacao.gerar();
+            usuario.setCodigoRecuperacaoHash(codigosRecuperacao.hash(codigo));
+            usuario = usuarios.save(usuario);
+        }
+        return emitirToken(usuario, codigo);
+    }
+
+    @Transactional
+    public CodigoRecuperacaoResponse redefinirSenha(UsuarioDtos.RedefinirSenhaRequest req) {
+        Usuario usuario = usuarios.findByEmail(normalizarEmail(req.email()))
+                .orElseThrow(() -> ApiException.invalido("E-mail ou código de recuperação inválido."));
+        if (!codigosRecuperacao.confere(req.codigoRecuperacao(), usuario.getCodigoRecuperacaoHash())) {
+            throw ApiException.invalido("E-mail ou código de recuperação inválido.");
+        }
+        usuario.setSenhaHash(senhas.encode(req.novaSenha()));
+        String novoCodigo = codigosRecuperacao.gerar();
+        usuario.setCodigoRecuperacaoHash(codigosRecuperacao.hash(novoCodigo));
+        usuarios.save(usuario);
+        return new CodigoRecuperacaoResponse(novoCodigo);
+    }
+
+    @Transactional
+    public CodigoRecuperacaoResponse gerarCodigoRecuperacao(Jwt jwt) {
+        Usuario usuario = ativo(jwt);
+        String codigo = codigosRecuperacao.gerar();
+        usuario.setCodigoRecuperacaoHash(codigosRecuperacao.hash(codigo));
+        usuarios.save(usuario);
+        return new CodigoRecuperacaoResponse(codigo);
     }
 
     @Transactional(readOnly = true)
@@ -169,9 +204,9 @@ public class UsuarioService {
                 avaliacoes.countByUsuarioId(u.getId()));
     }
 
-    private TokenResponse emitirToken(Usuario usuario) {
+    private TokenResponse emitirToken(Usuario usuario, String codigoRecuperacao) {
         var token = tokens.gerar(usuario);
-        return new TokenResponse(token.token(), token.expiraEm(), perfil(usuario));
+        return new TokenResponse(token.token(), token.expiraEm(), perfil(usuario), codigoRecuperacao);
     }
 
     static String normalizarEmail(String email) {

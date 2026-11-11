@@ -12,6 +12,7 @@ import { type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/auth";
+import { RecoveryCodeNotice } from "@/components/site/RecoveryCodeNotice";
 
 function NotFoundComponent() {
   return (
@@ -88,7 +89,7 @@ export const Route = createRootRouteWithContext<{
         content: "width=device-width, initial-scale=1",
       },
       {
-        title: "Cookie — Receitas que realmente funcionam",
+        title: "Lipapa — Receitas que realmente funcionam",
       },
       {
         name: "description",
@@ -97,7 +98,7 @@ export const Route = createRootRouteWithContext<{
       },
       {
         property: "og:title",
-        content: "Cookie — Receitas que realmente funcionam",
+        content: "Lipapa — Receitas que realmente funcionam",
       },
       {
         property: "og:description",
@@ -161,6 +162,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Outlet />
+        <RecoveryCodeNotice />
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>

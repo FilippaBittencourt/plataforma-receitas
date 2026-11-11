@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -21,6 +22,7 @@ import br.com.cookie.api.receita.ReceitaService;
 import br.com.cookie.api.usuario.UsuarioDtos.AlterarEmailRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.AlterarSenhaRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.AtualizarPerfilRequest;
+import br.com.cookie.api.usuario.UsuarioDtos.CodigoRecuperacaoResponse;
 import br.com.cookie.api.usuario.UsuarioDtos.Notificacoes;
 import br.com.cookie.api.usuario.UsuarioDtos.PerfilResponse;
 import jakarta.validation.Valid;
@@ -64,6 +66,11 @@ public class MeController {
     @PutMapping("/notificacoes")
     PerfilResponse notificacoes(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Notificacoes req) {
         return usuarios.atualizarNotificacoes(jwt, req);
+    }
+
+    @PostMapping("/codigo-recuperacao")
+    CodigoRecuperacaoResponse gerarCodigoRecuperacao(@AuthenticationPrincipal Jwt jwt) {
+        return usuarios.gerarCodigoRecuperacao(jwt);
     }
 
     @DeleteMapping

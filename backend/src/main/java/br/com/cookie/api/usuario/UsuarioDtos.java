@@ -27,6 +27,14 @@ public final class UsuarioDtos {
             @NotBlank(message = "Informe a senha.") String senha) {
     }
 
+    public record RedefinirSenhaRequest(
+            @NotBlank(message = "Informe o e-mail da conta.") @Email(message = "Informe um e-mail válido.") @Size(max = 150) String email,
+            @NotBlank(message = "Informe seu código de recuperação.") @Size(max = 40) String codigoRecuperacao,
+            @NotBlank(message = "Informe a nova senha.") @Size(min = 8, max = 72, message = "A senha precisa ter de 8 a 72 caracteres.") String novaSenha) {
+    }
+
+    public record CodigoRecuperacaoResponse(String codigoRecuperacao) {}
+
     public record AtualizarPerfilRequest(
             @NotBlank(message = "Informe seu nome.") @Size(min = 2, max = 150, message = "Use de 2 a 150 caracteres.") String nome,
             @NotBlank(message = "Informe o nome de usuário.") @Pattern(regexp = "^@?[A-Za-z0-9_.]{3,30}$", message = "Use de 3 a 30 letras, números, ponto ou sublinhado.") String nomeUsuario,
@@ -72,6 +80,6 @@ public final class UsuarioDtos {
         }
     }
 
-    public record TokenResponse(String token, Instant expiraEm, PerfilResponse usuario) {
+    public record TokenResponse(String token, Instant expiraEm, PerfilResponse usuario, String codigoRecuperacao) {
     }
 }

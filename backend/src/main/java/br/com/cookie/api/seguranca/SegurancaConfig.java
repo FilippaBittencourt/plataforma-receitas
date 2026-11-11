@@ -41,7 +41,8 @@ public class SegurancaConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/cadastro", "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/cadastro", "/api/auth/login",
+                                "/api/auth/redefinir-senha").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/receitas/*/avaliacao").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/categorias/**", "/api/receitas/**", "/api/usuarios/**",
                                 "/uploads/**").permitAll()

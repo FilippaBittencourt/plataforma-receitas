@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { Quote } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/site/Logo";
 import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { safeRedirect, useAuth } from "@/lib/auth";
 import { demoAccounts } from "@/lib/mock-data";
-import heroImage from "@/assets/hero-food.jpg";
+import heroImage from "@/assets/login-ingredients.jpg";
 
 type EntrarSearch = { redirect?: string; adicionar?: boolean };
 
@@ -26,12 +27,12 @@ export const Route = createFileRoute("/entrar")({
   },
   head: () => ({
     meta: [
-      { title: "Entrar — Cookie" },
+      { title: "Entrar — Lipapa" },
       {
         name: "description",
         content: "Acesse sua conta para avaliar receitas, salvar favoritas e enviar fotos.",
       },
-      { property: "og:title", content: "Entrar — Cookie" },
+      { property: "og:title", content: "Entrar — Lipapa" },
       {
         property: "og:description",
         content: "Acesse sua conta na plataforma de receitas testadas.",
@@ -49,7 +50,7 @@ function EntrarPage() {
   const [senha, setSenha] = useState("");
   const [errors, setErrors] = useState<{ email?: string; senha?: string; form?: string }>({});
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next: typeof errors = {};
     if (!EMAIL_RE.test(email.trim())) next.email = "Informe um e-mail válido.";
@@ -57,7 +58,7 @@ function EntrarPage() {
     setErrors(next);
     if (next.email || next.senha) return;
 
-    const result = login(email);
+    const result = await login(email, senha);
     if (!result.ok) {
       setErrors({ form: result.error });
       return;
@@ -68,10 +69,10 @@ function EntrarPage() {
   };
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      <div className="flex flex-col justify-center px-6 py-12 sm:px-16">
+    <div className="grid min-h-[100dvh] lg:h-dvh lg:min-h-0 lg:grid-cols-2 lg:overflow-hidden">
+      <div className="flex flex-col justify-center px-6 py-8 sm:px-16 lg:min-h-0 lg:px-12 lg:py-5 xl:px-16">
         <Logo />
-        <div className="mt-12 max-w-sm">
+        <div className="mt-8 max-w-sm lg:mt-6">
           <h1 className="text-3xl font-semibold text-foreground">
             {adicionar ? "Adicionar outra conta" : "Bem-vindo de volta"}
           </h1>
@@ -91,7 +92,7 @@ function EntrarPage() {
             </div>
           )}
 
-          <form className="mt-8 space-y-4" noValidate onSubmit={submit}>
+          <form className="mt-6 space-y-3 lg:mt-5" noValidate onSubmit={submit}>
             <div>
               <Label htmlFor="email">E-mail</Label>
               <Input
@@ -102,7 +103,7 @@ function EntrarPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 aria-invalid={Boolean(errors.email)}
                 placeholder="voce@email.com"
-                className="mt-2 h-11 rounded-xl bg-card"
+                className="mt-2 h-10 rounded-xl bg-card"
               />
               <FieldError>{errors.email}</FieldError>
             </div>
@@ -123,7 +124,7 @@ function EntrarPage() {
                 onChange={(e) => setSenha(e.target.value)}
                 aria-invalid={Boolean(errors.senha)}
                 placeholder="••••••••"
-                className="mt-2 h-11 rounded-xl bg-card"
+                className="mt-2 h-10 rounded-xl bg-card"
               />
               <FieldError>{errors.senha}</FieldError>
             </div>
@@ -138,19 +139,19 @@ function EntrarPage() {
                 </Link>
               </p>
             )}
-            <Button type="submit" className="h-11 w-full rounded-full">
+            <Button type="submit" className="h-10 w-full rounded-full">
               Entrar
             </Button>
           </form>
 
-          <div className="mt-6 rounded-2xl border border-dashed border-border p-4">
+          <div className="mt-4 rounded-2xl border border-dashed border-border p-3 lg:mt-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Contas de demonstração
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Protótipo sem servidor: qualquer senha funciona.
+              Contas de demonstração da API (senha: demo1234).
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-2 flex flex-wrap gap-2">
               {demoAccounts.map((a) => (
                 <button
                   key={a.id}
@@ -168,7 +169,7 @@ function EntrarPage() {
             </div>
           </div>
 
-          <p className="mt-6 text-sm text-muted-foreground">
+          <p className="mt-4 text-sm text-muted-foreground">
             Ainda não tem conta?{" "}
             <Link to="/cadastro" className="font-semibold text-primary hover:underline">
               Criar conta
@@ -176,25 +177,38 @@ function EntrarPage() {
           </p>
           <Link
             to="/"
-            className="mt-2 inline-block text-sm text-muted-foreground hover:text-foreground"
+            className="mt-1 inline-block text-sm text-muted-foreground hover:text-foreground"
           >
             Voltar para a home
           </Link>
         </div>
       </div>
 
-      <div className="relative hidden lg:block">
+      <div className="relative hidden min-h-0 lg:block">
         <img
           src={heroImage}
-          alt="Mesa com bolo caseiro"
+          alt="Ingredientes e utensílios organizados sobre uma mesa"
           width={1408}
           height={1008}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover object-center"
         />
-        <div className="absolute bottom-10 left-10 right-10 rounded-3xl bg-card/92 p-6 backdrop-blur">
-          <p className="font-display text-lg text-foreground">
-            “Em meio a milhares de receitas, mostramos quais realmente funcionam.”
-          </p>
+        <div className="absolute bottom-6 left-6 right-6 sm:bottom-8 sm:left-auto sm:right-8 sm:max-w-sm">
+          <div className="relative overflow-hidden rounded-2xl border border-white/25 bg-transparent p-4 shadow-lifted ring-1 ring-white/10 backdrop-blur-md sm:p-5">
+            <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-sand/20 blur-2xl" />
+            <div className="relative flex items-start gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/10 text-sand">
+                <Quote width={15} height={15} />
+              </span>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                  Feito para dar certo
+                </p>
+                <p className="mt-1 font-display text-sm leading-relaxed text-white sm:text-base">
+                  “Em meio a milhares de receitas, mostramos quais realmente funcionam.”
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -7,10 +7,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { demoAccounts, type Account } from "@/lib/mock-data";
-
-// Sessão simulada: o protótipo não tem backend, então contas e sessão ficam no localStorage.
-const STORAGE_KEY = "cookie:sessao";
+import type { Account } from "@/lib/mock-data";
+import { api, getToken, saveToken, type ApiUser } from "@/lib/api";
 
 type SessionState = {
   accounts: Account[];
@@ -18,72 +16,51 @@ type SessionState = {
   activeId: string | null;
 };
 
-type AuthResult = { ok: true; user: Account } | { ok: false; error: string };
+type AuthResult = { ok: true; user: Account; recoveryCode?: string } | { ok: false; error: string };
 
 type AuthContextValue = {
   ready: boolean;
   user: Account | null;
+  pendingRecoveryCode: string | null;
+  dismissRecoveryCode: () => void;
   signedInAccounts: Account[];
-  login: (email: string) => AuthResult;
-  signup: (data: { name: string; email: string }) => AuthResult;
+  login: (email: string, password: string) => Promise<AuthResult>;
+  signup: (data: { name: string; email: string; password: string }) => Promise<AuthResult>;
   logout: () => void;
   switchAccount: (id: string) => void;
-  updateUser: (patch: Partial<Omit<Account, "id" | "role">>) => void;
-  deleteAccount: () => void;
+  updateUser: (patch: Partial<Omit<Account, "id" | "role">>) => Promise<void>;
+  deleteAccount: () => Promise<void>;
   emailInUse: (email: string) => boolean;
 };
 
-const initialState: SessionState = { accounts: demoAccounts, signedInIds: [], activeId: null };
+const initialState: SessionState = { accounts: [], signedInIds: [], activeId: null };
+
+function toAccount(u: ApiUser): Account {
+  return { id: String(u.id), name: u.nome, handle: u.nomeUsuario.startsWith("@") ? u.nomeUsuario : `@${u.nomeUsuario}`,
+    email: u.email, bio: u.bio ?? "", since: `Membro desde ${new Date(u.dataCadastro).getFullYear()}`,
+    role: u.tipo === "ADMINISTRADOR" ? "moderador" : "membro",
+    fotoPerfil: u.fotoPerfil,
+    stats: { publicadas: u.estatisticas.receitasPublicadas, avaliacoes: u.estatisticas.avaliacoes, testadas: u.estatisticas.avaliacoes, seguidores: 0 },
+    publishedIds: [], testedIds: [], notifications: u.notificacoes };
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function readStorage(): SessionState {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return initialState;
-    const parsed = JSON.parse(raw) as SessionState;
-    if (!Array.isArray(parsed.accounts) || !Array.isArray(parsed.signedInIds)) return initialState;
-    return parsed;
-  } catch {
-    return initialState;
-  }
-}
-
-function writeStorage(state: SessionState) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // Sem armazenamento (aba anônima, bloqueio): a sessão vale só até recarregar.
-  }
-}
-
-function handleFrom(name: string) {
-  const slug = name
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-  return `@${slug || "cozinheiro"}`;
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>(initialState);
   const [ready, setReady] = useState(false);
+  const [pendingRecoveryCode, setPendingRecoveryCode] = useState<string | null>(null);
 
   useEffect(() => {
-    setState(readStorage());
-    setReady(true);
+    const token = getToken();
+    if (token) api<ApiUser>("/api/me").then((me) => setState({ accounts: [toAccount(me)], signedInIds: [String(me.id)], activeId: String(me.id) }))
+      .catch(() => saveToken(null)).finally(() => setReady(true));
+    else { setState(initialState); setReady(true); }
 
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setState(readStorage());
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
   const commit = useCallback((next: SessionState) => {
     setState(next);
-    writeStorage(next);
   }, []);
 
   const signIn = useCallback(
@@ -98,42 +75,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const login = useCallback(
-    (email: string): AuthResult => {
-      const normalized = email.trim().toLowerCase();
-      const account = state.accounts.find((a) => a.email.toLowerCase() === normalized);
-      if (!account) return { ok: false, error: "Não encontramos uma conta com este e-mail." };
-      commit(signIn(state, account));
-      return { ok: true, user: account };
+    async (email: string, password: string): Promise<AuthResult> => {
+      try {
+        const data = await api<{ token: string; usuario: ApiUser; codigoRecuperacao?: string | null }>("/api/auth/login", { method: "POST", body: JSON.stringify({ email, senha: password }) });
+        saveToken(data.token); const account = toAccount(data.usuario); commit({ accounts: [account], signedInIds: [account.id], activeId: account.id });
+        if (data.codigoRecuperacao) setPendingRecoveryCode(data.codigoRecuperacao);
+        return { ok: true, user: account, ...(data.codigoRecuperacao ? { recoveryCode: data.codigoRecuperacao } : {}) };
+      } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Falha ao entrar." }; }
     },
     [state, commit, signIn],
   );
 
   const signup = useCallback(
-    ({ name, email }: { name: string; email: string }): AuthResult => {
-      const normalized = email.trim().toLowerCase();
-      if (state.accounts.some((a) => a.email.toLowerCase() === normalized)) {
-        return { ok: false, error: "Já existe uma conta com este e-mail." };
-      }
-      const account: Account = {
-        id: `u-${Date.now().toString(36)}`,
-        name: name.trim(),
-        handle: handleFrom(name),
-        email: normalized,
-        bio: "",
-        since: `Membro desde ${new Date().getFullYear()}`,
-        role: "membro",
-        stats: { publicadas: 0, avaliacoes: 0, testadas: 0, seguidores: 0 },
-        publishedIds: [],
-        testedIds: [],
-        notifications: { avaliacoes: true, comentarios: true, novidades: false },
-      };
-      commit(signIn(state, account, [...state.accounts, account]));
-      return { ok: true, user: account };
+    async ({ name, email, password }: { name: string; email: string; password: string }): Promise<AuthResult> => {
+      try {
+        const data = await api<{ token: string; usuario: ApiUser; codigoRecuperacao?: string | null }>("/api/auth/cadastro", { method: "POST", body: JSON.stringify({ nome: name, email, senha: password }) });
+        saveToken(data.token); const account = toAccount(data.usuario); commit({ accounts: [account], signedInIds: [account.id], activeId: account.id });
+        if (data.codigoRecuperacao) setPendingRecoveryCode(data.codigoRecuperacao);
+        return { ok: true, user: account, ...(data.codigoRecuperacao ? { recoveryCode: data.codigoRecuperacao } : {}) };
+      } catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Falha ao criar conta." }; }
     },
     [state, commit, signIn],
   );
 
   const logout = useCallback(() => {
+    saveToken(null);
     commit({ ...state, signedInIds: [], activeId: null });
   }, [state, commit]);
 
@@ -146,18 +112,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const updateUser = useCallback(
-    (patch: Partial<Omit<Account, "id" | "role">>) => {
+    async (patch: Partial<Omit<Account, "id" | "role">>) => {
       if (!state.activeId) return;
+      const current = state.accounts.find(a => a.id === state.activeId);
+      if (!current) return;
+      const profile = await api<ApiUser>("/api/me", { method: "PATCH", body: JSON.stringify({ nome: patch.name ?? current.name, nomeUsuario: patch.handle ?? current.handle, bio: patch.bio ?? current.bio, fotoPerfil: patch.fotoPerfil === undefined ? current.fotoPerfil ?? null : patch.fotoPerfil }) });
+      const updated = toAccount(profile);
       commit({
         ...state,
-        accounts: state.accounts.map((a) => (a.id === state.activeId ? { ...a, ...patch } : a)),
+        accounts: [updated],
       });
     },
     [state, commit],
   );
 
-  const deleteAccount = useCallback(() => {
+  const deleteAccount = useCallback(async () => {
     if (!state.activeId) return;
+    await api("/api/me", { method: "DELETE" });
+    saveToken(null);
     const id = state.activeId;
     commit({
       accounts: state.accounts.filter((a) => a.id !== id),
@@ -171,6 +143,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       ready,
       user: state.activeId ? (byId(state.activeId) ?? null) : null,
+      pendingRecoveryCode,
+      dismissRecoveryCode: () => setPendingRecoveryCode(null),
       signedInAccounts: state.signedInIds.map(byId).filter((a): a is Account => Boolean(a)),
       login,
       signup,
@@ -185,7 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
       },
     };
-  }, [state, ready, login, signup, logout, switchAccount, updateUser, deleteAccount]);
+  }, [state, ready, pendingRecoveryCode, login, signup, logout, switchAccount, updateUser, deleteAccount]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

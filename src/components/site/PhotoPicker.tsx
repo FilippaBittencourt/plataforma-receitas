@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -13,12 +14,14 @@ export function PhotoPicker({
   title,
   hint,
   className,
+  onUploaded,
 }: {
   id?: string;
   icon: ReactNode;
   title: string;
   hint: string;
   className?: string;
+  onUploaded?: (url: string | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string>();
@@ -26,7 +29,7 @@ export function PhotoPicker({
 
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
 
-  const pick = (file: File | undefined) => {
+  const pick = async (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
       toast.error("Escolha um arquivo de imagem (PNG ou JPG).");
@@ -37,10 +40,15 @@ export function PhotoPicker({
       return;
     }
     setPreview(URL.createObjectURL(file));
+    if (onUploaded) {
+      try { const form = new FormData(); form.append("arquivo", file); const uploaded = await api<{ url: string }>("/api/uploads", { method: "POST", body: form }); onUploaded(uploaded.url); }
+      catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao enviar a foto."); clear(); }
+    }
   };
 
   const clear = () => {
     setPreview(undefined);
+    onUploaded?.(null);
     if (inputRef.current) inputRef.current.value = "";
   };
 

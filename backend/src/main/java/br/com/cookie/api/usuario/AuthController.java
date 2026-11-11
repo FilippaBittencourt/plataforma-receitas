@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import br.com.cookie.api.usuario.UsuarioDtos.CadastroRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.LoginRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.TokenResponse;
+import br.com.cookie.api.usuario.UsuarioDtos.RedefinirSenhaRequest;
 import jakarta.validation.Valid;
 
 @RestController
@@ -17,7 +18,6 @@ import jakarta.validation.Valid;
 public class AuthController {
 
     private final UsuarioService usuarios;
-
     public AuthController(UsuarioService usuarios) {
         this.usuarios = usuarios;
     }
@@ -31,5 +31,10 @@ public class AuthController {
     @PostMapping("/login")
     TokenResponse entrar(@Valid @RequestBody LoginRequest req) {
         return usuarios.entrar(req);
+    }
+
+    @PostMapping("/redefinir-senha")
+    UsuarioDtos.CodigoRecuperacaoResponse redefinirSenha(@Valid @RequestBody RedefinirSenhaRequest req) {
+        return usuarios.redefinirSenha(req);
     }
 }

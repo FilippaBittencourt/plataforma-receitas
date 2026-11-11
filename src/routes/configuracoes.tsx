@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { ImagePlus, KeyRound, X } from "lucide-react";
 import { toast } from "sonner";
 import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
 import { RequireAuth } from "@/components/site/RequireAuth";
@@ -23,11 +24,13 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
 import type { Account } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { PhotoPicker } from "@/components/site/PhotoPicker";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Configurações — Cookie" },
+      { title: "Configurações — Lipapa" },
       { name: "description", content: "Edite seu perfil, e-mail, senha e notificações." },
       { name: "robots", content: "noindex" },
     ],
@@ -80,10 +83,58 @@ function Settings() {
         <ProfileForm user={user} />
         <EmailForm user={user} />
         <PasswordForm />
+        <RecoveryCodeForm />
         <NotificationsForm user={user} />
         <DangerZone user={user} />
       </div>
     </div>
+  );
+}
+
+function RecoveryCodeForm() {
+  const [codigo, setCodigo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const generate = async () => {
+    setBusy(true);
+    try {
+      const result = await api<{ codigoRecuperacao: string }>("/api/me/codigo-recuperacao", {
+        method: "POST",
+      });
+      setCodigo(result.codigoRecuperacao);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível gerar o código.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Section
+      title="Código de recuperação"
+      description="Use o código para redefinir sua senha se não conseguir entrar. Gerar outro invalida o código anterior."
+    >
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-full"
+          disabled={busy}
+          onClick={() => void generate()}
+        >
+          <KeyRound width={15} height={15} />
+          {busy ? "Gerando…" : "Gerar novo código"}
+        </Button>
+        {codigo && (
+          <code className="select-all rounded-xl border border-border bg-muted px-3 py-2 font-mono font-bold tracking-wider">
+            {codigo}
+          </code>
+        )}
+      </div>
+      {codigo && (
+        <p role="status" className="mt-3 text-sm text-muted-foreground">
+          Guarde este código agora. Ele não poderá ser consultado novamente.
+        </p>
+      )}
+    </Section>
   );
 }
 
@@ -92,11 +143,16 @@ function ProfileForm({ user }: { user: Account }) {
   const [name, setName] = useState(user.name);
   const [handle, setHandle] = useState(user.handle);
   const [bio, setBio] = useState(user.bio);
+  const [fotoPerfil, setFotoPerfil] = useState<string | null>(user.fotoPerfil ?? null);
   const [errors, setErrors] = useState<{ name?: string; handle?: string }>({});
 
-  const dirty = name !== user.name || handle !== user.handle || bio !== user.bio;
+  const dirty =
+    name !== user.name ||
+    handle !== user.handle ||
+    bio !== user.bio ||
+    fotoPerfil !== (user.fotoPerfil ?? null);
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const normalizedHandle = `@${handle.trim().replace(/^@+/, "").toLowerCase()}`;
     const next: typeof errors = {};
@@ -106,9 +162,18 @@ function ProfileForm({ user }: { user: Account }) {
     setErrors(next);
     if (next.name || next.handle) return;
 
-    updateUser({ name: name.trim(), handle: normalizedHandle, bio: bio.trim() });
-    setHandle(normalizedHandle);
-    toast.success("Perfil atualizado");
+    try {
+      await updateUser({
+        name: name.trim(),
+        handle: normalizedHandle,
+        bio: bio.trim(),
+        fotoPerfil,
+      });
+      setHandle(normalizedHandle);
+      toast.success("Perfil atualizado");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível salvar o perfil.");
+    }
   };
 
   return (
@@ -116,9 +181,25 @@ function ProfileForm({ user }: { user: Account }) {
       <form className="space-y-4" noValidate onSubmit={submit}>
         <div className="flex items-center gap-4">
           <UserAvatar user={{ ...user, name: name || user.name }} className="h-14 w-14 text-base" />
-          <p className="text-xs text-muted-foreground">
-            O avatar usa as iniciais do seu nome. Fotos de perfil chegam numa próxima versão.
-          </p>
+          <div className="flex-1">
+            <PhotoPicker
+              icon={<ImagePlus className="text-caramel" />}
+              title="Foto de perfil"
+              hint="PNG, JPG ou WEBP · até 5 MB"
+              onUploaded={setFotoPerfil}
+            />
+            {fotoPerfil && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mt-2 rounded-full"
+                onClick={() => setFotoPerfil(null)}
+              >
+                <X width={14} height={14} /> Remover foto atual
+              </Button>
+            )}
+          </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -170,19 +251,24 @@ function ProfileForm({ user }: { user: Account }) {
 }
 
 function EmailForm({ user }: { user: Account }) {
-  const { updateUser, emailInUse } = useAuth();
+  const { emailInUse } = useAuth();
   const [email, setEmail] = useState(user.email);
   const [error, setError] = useState<string>();
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const normalized = email.trim().toLowerCase();
     if (!EMAIL_RE.test(normalized)) return setError("Informe um e-mail válido.");
     if (emailInUse(normalized)) return setError("Já existe outra conta com este e-mail.");
     setError(undefined);
-    updateUser({ email: normalized });
-    setEmail(normalized);
-    toast.success("E-mail atualizado", { description: "Use o novo e-mail no próximo login." });
+    try {
+      await api("/api/me/email", { method: "PUT", body: JSON.stringify({ email: normalized }) });
+      setEmail(normalized);
+      toast.success("E-mail atualizado");
+      window.location.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível alterar o e-mail.");
+    }
   };
 
   return (
@@ -222,7 +308,7 @@ function PasswordForm() {
   const [confirm, setConfirm] = useState("");
   const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const found: typeof errors = {};
     if (!current) found.current = "Informe sua senha atual.";
@@ -232,10 +318,18 @@ function PasswordForm() {
     setErrors(found);
     if (Object.keys(found).length > 0) return;
 
-    setCurrent("");
-    setNext("");
-    setConfirm("");
-    toast.success("Senha alterada", { description: "Protótipo: a senha não é armazenada." });
+    try {
+      await api("/api/me/senha", {
+        method: "PUT",
+        body: JSON.stringify({ senhaAtual: current, novaSenha: next }),
+      });
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      toast.success("Senha alterada");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível alterar a senha.");
+    }
   };
 
   return (
@@ -301,11 +395,6 @@ const notificationOptions: { key: keyof Account["notifications"]; label: string;
       label: "Respostas e comentários",
       hint: "Quando responderem um comentário seu.",
     },
-    {
-      key: "novidades",
-      label: "Novidades e receitas verificadas",
-      hint: "Um resumo semanal com o que ganhou o selo.",
-    },
   ];
 
 function NotificationsForm({ user }: { user: Account }) {
@@ -328,9 +417,19 @@ function NotificationsForm({ user }: { user: Account }) {
             <Switch
               id={`notif-${opt.key}`}
               checked={user.notifications[opt.key]}
-              onCheckedChange={(checked) => {
-                updateUser({ notifications: { ...user.notifications, [opt.key]: checked } });
-                toast.success("Preferência salva");
+              onCheckedChange={async (checked) => {
+                const next = { ...user.notifications, [opt.key]: checked };
+                try {
+                  await api("/api/me/notificacoes", { method: "PUT", body: JSON.stringify(next) });
+                  toast.success("Preferência salva");
+                  window.location.reload();
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : "Não foi possível salvar a preferência.",
+                  );
+                }
               }}
             />
           </li>
@@ -381,8 +480,14 @@ function DangerZone({ user }: { user: Account }) {
               onClick={async () => {
                 // Sai da página protegida antes de apagar a sessão, para não cair no login.
                 await navigate({ to: "/", replace: true });
-                deleteAccount();
-                toast.success("Sua conta foi excluída");
+                try {
+                  await deleteAccount();
+                  toast.success("Sua conta foi excluída");
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error ? error.message : "Não foi possível excluir a conta.",
+                  );
+                }
               }}
             >
               Excluir conta

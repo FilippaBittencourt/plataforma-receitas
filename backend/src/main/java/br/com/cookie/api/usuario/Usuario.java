@@ -33,6 +33,9 @@ public class Usuario {
     @Column(name = "senha_hash", nullable = false)
     private String senhaHash;
 
+    @Column(name = "codigo_recuperacao_hash", length = 64)
+    private String codigoRecuperacaoHash;
+
     @Column(name = "foto_perfil", length = 500)
     private String fotoPerfil;
 
@@ -119,6 +122,9 @@ public class Usuario {
     public void setSenhaHash(String senhaHash) {
         this.senhaHash = senhaHash;
     }
+
+    public String getCodigoRecuperacaoHash() { return codigoRecuperacaoHash; }
+    public void setCodigoRecuperacaoHash(String codigoRecuperacaoHash) { this.codigoRecuperacaoHash = codigoRecuperacaoHash; }
 
     public String getFotoPerfil() {
         return fotoPerfil;

@@ -14,12 +14,12 @@ import recipeImage from "@/assets/recipe-1.jpg";
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
     meta: [
-      { title: "Criar conta — Cookie" },
+      { title: "Criar conta — Lipapa" },
       {
         name: "description",
         content: "Crie sua conta gratuita e comece a avaliar receitas por critérios objetivos.",
       },
-      { property: "og:title", content: "Criar conta — Cookie" },
+      { property: "og:title", content: "Criar conta — Lipapa" },
       {
         property: "og:description",
         content: "Junte-se à comunidade que testa receitas de verdade.",
@@ -42,7 +42,7 @@ function CadastroPage() {
   const [termos, setTermos] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next: Errors = {};
     if (nome.trim().length < 2) next.nome = "Informe seu nome.";
@@ -52,7 +52,7 @@ function CadastroPage() {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    const result = signup({ name: nome, email });
+    const result = await signup({ name: nome, email, password: senha });
     if (!result.ok) {
       setErrors({ form: result.error });
       return;
