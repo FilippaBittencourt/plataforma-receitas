@@ -3,6 +3,7 @@ package br.com.cookie.api.avaliacao;
 import java.util.List;
 
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import br.com.cookie.api.receita.ReceitaEstatisticaRepository;
 import br.com.cookie.api.receita.ReceitaService;
 import br.com.cookie.api.usuario.Usuario;
 import br.com.cookie.api.usuario.UsuarioService;
+import br.com.cookie.api.email.EmailNotificacaoService.Atividade;
 import jakarta.persistence.EntityManager;
 
 @Service
@@ -29,16 +31,18 @@ public class AvaliacaoService {
     private final ReceitaService receitas;
     private final UsuarioService usuarios;
     private final EntityManager em;
+    private final ApplicationEventPublisher eventos;
 
     public AvaliacaoService(AvaliacaoRepository avaliacoes, ComentarioRepository comentarios,
             ReceitaEstatisticaRepository estatisticas, ReceitaService receitas, UsuarioService usuarios,
-            EntityManager em) {
+            EntityManager em, ApplicationEventPublisher eventos) {
         this.avaliacoes = avaliacoes;
         this.comentarios = comentarios;
         this.estatisticas = estatisticas;
         this.receitas = receitas;
         this.usuarios = usuarios;
         this.em = em;
+        this.eventos = eventos;
     }
 
     public record Resultado(AvaliacaoResponse avaliacao, boolean criada) {
@@ -75,6 +79,10 @@ public class AvaliacaoService {
                     return EstatisticasResumo.de(e);
                 })
                 .orElseGet(() -> EstatisticasResumo.de(null));
+        Usuario autor = receita.getAutor();
+        if (existente.isEmpty() && autor != null && !autor.getId().equals(usuario.getId()) && autor.isNotifAvaliacoes()) {
+            eventos.publishEvent(new Atividade(autor.getEmail(), autor.getNome(), usuario.getNome(), receita.getTitulo(), receita.getId(), "avaliacao"));
+        }
         var resposta = new AvaliacaoResponse(receita.getId(), avaliacao.isFuncionou(), Notas.de(avaliacao),
                 avaliacao.media(), avaliacao.getDataAvaliacao(), stats);
         return new Resultado(resposta, existente.isEmpty());
