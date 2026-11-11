@@ -19,11 +19,11 @@ export function LogoMark({ className }: { className?: string }) {
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <Link to="/" aria-label="Cookie, página inicial" className="flex items-center gap-2.5">
+    <Link to="/" aria-label="Lipapa, página inicial" className="flex items-center gap-2.5">
       <LogoMark className="h-7 w-7" />
       {!compact && (
         <span className="font-display text-xl font-semibold tracking-tight text-foreground">
-          Cookie
+          Lipapa
         </span>
       )}
     </Link>
