@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cookie}
+      POSTGRES_USER: ${POSTGRES_USER:-cookie}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD no arquivo .env}
+    volumes:
+      - banco-dados:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8080}:8080"
+    environment:
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-cookie}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-cookie}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD no arquivo .env}
+      JWT_SECRET: ${JWT_SECRET:?Configure JWT_SECRET no arquivo .env}
+      APP_CORS_ORIGENS: ${APP_CORS_ORIGENS:?Configure a origem do frontend no arquivo .env}
+      FRONTEND_URL: ${FRONTEND_URL:?Configure FRONTEND_URL no arquivo .env}
+      UPLOADS_DIR: /data/uploads
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_FROM: ${EMAIL_FROM:-Cookie <no-reply@example.com>}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
+    volumes:
+      - uploads-dados:/data/uploads
+
+  https-proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: ["https"]
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Configure API_DOMAIN com o domínio público da API}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-dados:/data
+      - caddy-config:/config
+
+volumes:
+  banco-dados:
+  uploads-dados:
+  caddy-dados:
+  caddy-config:
