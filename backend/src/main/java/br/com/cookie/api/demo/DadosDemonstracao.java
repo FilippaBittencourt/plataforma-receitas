@@ -2,6 +2,7 @@ package br.com.cookie.api.demo;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,11 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import br.com.cookie.api.avaliacao.Avaliacao;
-import br.com.cookie.api.avaliacao.AvaliacaoRepository;
 import br.com.cookie.api.categoria.CategoriaRepository;
-import br.com.cookie.api.comentario.Comentario;
-import br.com.cookie.api.comentario.ComentarioRepository;
 import br.com.cookie.api.receita.Dificuldade;
 import br.com.cookie.api.receita.Ingrediente;
 import br.com.cookie.api.receita.IngredienteRepository;
@@ -44,19 +41,14 @@ public class DadosDemonstracao implements ApplicationRunner {
     private final ReceitaRepository receitas;
     private final CategoriaRepository categorias;
     private final IngredienteRepository ingredientes;
-    private final AvaliacaoRepository avaliacoes;
-    private final ComentarioRepository comentarios;
     private final PasswordEncoder senhas;
 
     public DadosDemonstracao(UsuarioRepository usuarios, ReceitaRepository receitas, CategoriaRepository categorias,
-            IngredienteRepository ingredientes, AvaliacaoRepository avaliacoes, ComentarioRepository comentarios,
-            PasswordEncoder senhas) {
+            IngredienteRepository ingredientes, PasswordEncoder senhas) {
         this.usuarios = usuarios;
         this.receitas = receitas;
         this.categorias = categorias;
         this.ingredientes = ingredientes;
-        this.avaliacoes = avaliacoes;
-        this.comentarios = comentarios;
         this.senhas = senhas;
     }
 
@@ -64,9 +56,14 @@ public class DadosDemonstracao implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         if (usuarios.count() > 0) {
+            Usuario autora = usuarios.findByNomeUsuario("marinaduarte")
+                    .or(() -> usuarios.findByEmail("marina@cookie.com"))
+                    .orElseGet(() -> usuario("Marina Duarte", "marinaduarte", "marina@cookie.com",
+                            "Confeiteira caseira. Peso tudo, até o sal."));
+            criarReceitasDemonstracao(autora);
             return;
         }
-        Usuario julia = usuario("Júlia Ferraz", "juliaferraz", "julia@cookie.com",
+        usuario("Júlia Ferraz", "juliaferraz", "julia@cookie.com",
                 "Testo receitas nos fins de semana e anoto tudo. Confio em medidas em gramas.");
         Usuario marina = usuario("Marina Duarte", "marinaduarte", "marina@cookie.com",
                 "Confeiteira caseira. Peso tudo, até o sal.");
@@ -74,72 +71,92 @@ public class DadosDemonstracao implements ApplicationRunner {
                 "Curadoria de receitas, fotos e links externos.");
         moderacao.setTipo(TipoUsuario.ADMINISTRADOR);
 
-        Receita cookies = receita(marina, "Cookies de caramelo salgado", "doces", 45, "18 cookies grandes",
-                Dificuldade.FACIL,
-                "Bordas crocantes, centro macio e um caramelo salgado que não endurece na geladeira.",
-                List.of(
-                        item("manteiga sem sal", "220", "g", "amolecida"),
-                        item("açúcar mascavo claro", "180", "g", null),
-                        item("açúcar refinado", "100", "g", null),
-                        item("ovo", "2", "unidades", "grandes, cerca de 60 g cada"),
-                        item("farinha de trigo", "320", "g", null),
-                        item("bicarbonato de sódio", "1", "colher de chá", null),
-                        item("chocolate meio amargo", "200", "g", "picado"),
-                        item("caramelo salgado", "80", "g", "firme, em cubos"),
-                        item("flor de sal", null, null, "para finalizar")),
-                List.of(
-                        "Bata a manteiga com os açúcares por 3 minutos, até clarear.",
-                        "Adicione os ovos um a um, batendo apenas para incorporar.",
-                        "Misture a farinha peneirada com o bicarbonato e incorpore com espátula.",
-                        "Junte o chocolate e os cubos de caramelo. Leve à geladeira por 30 minutos.",
-                        "Porcione bolas de 60 g e asse a 180 °C por 11 a 13 minutos.",
-                        "Finalize com flor de sal e deixe firmar 10 minutos na assadeira."));
-        cookies.moderar(StatusReceita.APROVADA);
-
-        Receita pao = receita(marina, "Pão rústico de fermentação natural", "paes", 1440, "1 pão de 900 g",
-                Dificuldade.AVANCADO, "Casca crocante e miolo aberto, com tempos testados em cozinha doméstica.",
-                List.of(
-                        item("farinha de trigo", "500", "g", null),
-                        item("água", "350", "ml", "em temperatura ambiente"),
-                        item("levain", "100", "g", "ativo"),
-                        item("sal", "10", "g", null)),
-                List.of(
-                        "Misture a farinha e a água e descanse por 1 hora (autólise).",
-                        "Junte o levain e o sal e faça 4 séries de dobras a cada 30 minutos.",
-                        "Modele, coloque no cesto e leve à geladeira por 12 a 16 horas.",
-                        "Asse em panela tampada a 250 °C por 20 minutos e destampada por mais 25."));
-        pao.moderar(StatusReceita.APROVADA);
-
-        Receita bolo = receita(julia, "Bolo de cenoura sem glúten", "doces", 60, "1 forma de 22 cm",
-                Dificuldade.FACIL, "Versão sem glúten testada três vezes antes de publicar.",
-                List.of(
-                        item("cenoura", "300", "g", "descascada"),
-                        item("ovo", "3", "unidades", null),
-                        item("óleo", "180", "ml", null),
-                        item("açúcar refinado", "240", "g", null),
-                        item("farinha de arroz", "240", "g", null),
-                        item("fermento químico", "1", "colher de sopa", null)),
-                List.of(
-                        "Bata a cenoura, os ovos e o óleo no liquidificador.",
-                        "Misture com o açúcar e a farinha de arroz; por último, o fermento.",
-                        "Asse a 180 °C por 40 minutos."));
-
-        Receita indicada = new Receita(Origem.EXTERNA, julia);
-        indicada.setTitulo("Pão de queijo mineiro");
-        indicada.setUrlFonte("https://blogdacozinha.com/pao-de-queijo");
-        indicada.setResumo("Fiz duas vezes e as medidas bateram perfeitamente.");
-        indicada.setCategoria(categorias.findBySlug("paes").orElseThrow());
-
-        receitas.saveAll(List.of(cookies, pao, bolo, indicada));
-
-        avaliar(cookies, julia, true, 5, 5, 4, 5, 5);
-        avaliar(cookies, moderacao, true, 5, 4, 5, 5, 5);
-        avaliar(pao, julia, true, 5, 3, 5, 4, 5);
-        comentarios.save(new Comentario(cookies, julia, "Segui exatamente as medidas e saíram idênticos à foto. "
-                + "O descanso de 30 minutos faz toda a diferença.", null));
+        criarReceitasDemonstracao(marina);
 
         log.info("Dados de demonstração criados. Contas: julia@cookie.com, marina@cookie.com e "
                 + "moderacao@cookie.com (senha {}).", SENHA);
+    }
+
+    private void criarReceitasDemonstracao(Usuario autora) {
+        criarSeAusente(receitaKanelbulle(autora));
+        criarSeAusente(receitaCroissant(autora));
+        criarSeAusente(receitaCarbonara(autora));
+        criarSeAusente(receitaMoscowMule(autora));
+    }
+
+    private void criarSeAusente(Receita receita) {
+        if (receitas.findAll().stream().noneMatch(r -> r.getTitulo().equalsIgnoreCase(receita.getTitulo()))) {
+            receita.moderar(StatusReceita.APROVADA);
+            receitas.save(receita);
+        }
+    }
+
+    private Receita receitaKanelbulle(Usuario autora) {
+        return receita(autora, "Kanelbulle (pãezinhos suecos de canela)", "doces", 180, "12 unidades",
+                Dificuldade.MEDIO, "Pãezinhos macios de massa enriquecida com cardamomo, recheados com manteiga, açúcar e canela. Rende 12 unidades.",
+                List.of(
+                        item("farinha de trigo", "500", "g", null), item("leite integral", "250", "ml", "morno"),
+                        item("fermento biológico fresco", "25", "g", null), item("açúcar", "80", "g", null),
+                        item("manteiga sem sal", "75", "g", "amolecida, para a massa"),
+                        item("cardamomo em pó", "1", "colher de sopa", null), item("sal", "5", "g", null),
+                        item("manteiga sem sal", "75", "g", "amolecida, para o recheio"),
+                        item("açúcar", "60", "g", "para o recheio"), item("canela em pó", "2", "colheres de sopa", null),
+                        item("ovo", "1", "unidade", "batido, para pincelar"),
+                        item("açúcar perolado", "20", "g", "para finalizar")),
+                List.of("Dissolva o fermento no leite morno. Junte açúcar, cardamomo, sal, manteiga e farinha aos poucos; sove por cerca de 10 minutos, até a massa ficar lisa e elástica.",
+                        "Cubra e deixe crescer em local morno por 60 a 90 minutos, até quase dobrar de volume.",
+                        "Misture a manteiga do recheio com o açúcar e a canela. Abra a massa em um retângulo de aproximadamente 40 × 50 cm e espalhe o recheio.",
+                        "Dobre a massa ao meio no sentido do comprimento, corte 12 tiras e torça cada uma. Enrole as tiras em nós e coloque em assadeira forrada.",
+                        "Cubra e deixe crescer por mais 30 a 45 minutos. Pincele com ovo batido e salpique açúcar perolado.",
+                        "Asse em forno preaquecido a 200 °C por 10 a 12 minutos, até dourar. Deixe amornar antes de servir."));
+    }
+
+    private Receita receitaCroissant(Usuario autora) {
+        return receita(autora, "Croissant clássico", "paes", 1440, "12 unidades",
+                Dificuldade.AVANCADO, "Massa levedada e folhada com manteiga laminada. O preparo inclui descanso refrigerado durante a noite para facilitar a laminação.",
+                List.of(item("farinha de trigo", "500", "g", null), item("leite integral", "140", "ml", "gelado"),
+                        item("água", "140", "ml", "gelada"), item("fermento biológico fresco", "15", "g", null),
+                        item("açúcar", "50", "g", null), item("sal", "10", "g", null),
+                        item("manteiga sem sal", "50", "g", "para a massa"),
+                        item("manteiga sem sal", "250", "g", "gelada, para laminar"),
+                        item("ovo", "1", "unidade", "batido com 1 colher de sopa de água, para pincelar")),
+                List.of("Misture farinha, açúcar e sal. Dissolva o fermento na água e no leite frios; junte aos secos com os 50 g de manteiga. Sove só até obter uma massa homogênea.",
+                        "Forme um retângulo, cubra e deixe descansar por 30 minutos. Leve à geladeira por 8 a 12 horas.",
+                        "Entre duas folhas de papel-manteiga, abra os 250 g de manteiga em um quadrado de cerca de 18 cm. Mantenha refrigerada, mas maleável.",
+                        "Abra a massa em um retângulo com o dobro da largura da placa de manteiga. Coloque a manteiga em uma metade e dobre a outra metade sobre ela, selando as bordas.",
+                        "Abra com cuidado em um retângulo comprido e faça uma dobra em três. Refrigere por 30 minutos. Repita a abertura e a dobra em três mais duas vezes, refrigerando entre cada volta.",
+                        "Abra a massa até cerca de 4 mm de espessura, corte 12 triângulos e enrole da base até a ponta. Disponha em assadeiras com a ponta para baixo.",
+                        "Deixe fermentar por 2 a 3 horas em local fresco, até crescer e tremer levemente ao mover a assadeira. Evite calor alto para não derreter a manteiga.",
+                        "Pincele com ovo batido e asse a 200 °C por 15 a 18 minutos, até bem dourados. Esfrie sobre uma grade."));
+    }
+
+    private Receita receitaCarbonara(Usuario autora) {
+        return receita(autora, "Espaguete à carbonara tradicional", "massas", 30, "4 porções",
+                Dificuldade.MEDIO, "Carbonara romana com guanciale, gemas, Pecorino Romano e pimenta-do-reino. O molho fica cremoso com a água do cozimento, sem creme de leite.",
+                List.of(item("espaguete", "400", "g", null), item("guanciale", "150", "g", "em tiras ou cubos"),
+                        item("gema de ovo", "4", "unidades", "em temperatura ambiente"),
+                        item("ovo", "1", "unidade", "em temperatura ambiente"),
+                        item("queijo pecorino romano", "100", "g", "finamente ralado"),
+                        item("pimenta-do-reino", "2", "g", "moída na hora, ou a gosto"),
+                        item("sal", null, null, "para a água do cozimento, com moderação")),
+                List.of("Leve uma panela grande de água à fervura e tempere com pouco sal, pois o guanciale e o queijo já são salgados.",
+                        "Enquanto isso, doure o guanciale em frigideira fria, em fogo médio-baixo, por 7 a 9 minutos, até soltar a gordura e ficar crocante. Desligue o fogo.",
+                        "Misture as gemas, o ovo inteiro, o Pecorino e bastante pimenta até formar uma pasta espessa.",
+                        "Cozinhe o espaguete até ficar al dente. Reserve uma xícara da água do cozimento e escorra a massa.",
+                        "Junte a massa à frigideira com o guanciale e misture. Aguarde alguns segundos para a frigideira perder o calor intenso.",
+                        "Adicione a mistura de ovos e queijo, mexendo sem parar. Acrescente água do cozimento aos poucos até formar um molho brilhante que envolva a massa. Sirva imediatamente com mais Pecorino e pimenta."));
+    }
+
+    private Receita receitaMoscowMule(Usuario autora) {
+        return receita(autora, "Moscow Mule clássico", "bebidas", 5, "1 drink",
+                Dificuldade.FACIL, "Coquetel refrescante de vodka, limão e ginger beer, servido bem gelado. A caneca de cobre é tradicional, mas não obrigatória.",
+                List.of(item("vodka", "45", "ml", null), item("suco de limão-taiti", "10", "ml", "espremido na hora"),
+                        item("ginger beer", "120", "ml", "bem gelada"), item("gelo", "150", "g", "ou o suficiente para encher a caneca"),
+                        item("limão", "1", "fatia", "para guarnecer")),
+                List.of("Encha uma caneca de cobre ou copo alto com gelo.",
+                        "Adicione a vodka e o suco de limão e mexa brevemente.",
+                        "Complete com ginger beer gelada e misture com delicadeza para preservar a carbonatação.",
+                        "Guarneça com uma fatia de limão e sirva imediatamente."));
     }
 
     private Usuario usuario(String nome, String nomeUsuario, String email, String bio) {
@@ -165,8 +182,9 @@ public class DadosDemonstracao implements ApplicationRunner {
         receita.setDificuldade(dificuldade);
         receita.setResumo(resumo);
         for (Item i : itens) {
-            Ingrediente ingrediente = ingredientes.findByNome(i.nome())
-                    .orElseGet(() -> ingredientes.save(new Ingrediente(i.nome())));
+            String nomeIngrediente = i.nome().toLowerCase(Locale.ROOT);
+            Ingrediente ingrediente = ingredientes.findByNome(nomeIngrediente)
+                    .orElseGet(() -> ingredientes.save(new Ingrediente(nomeIngrediente)));
             receita.getIngredientes().add(new ItemIngrediente(ingrediente,
                     i.quantidade() == null ? null : new BigDecimal(i.quantidade()), i.unidade(), i.observacao()));
         }
@@ -174,9 +192,4 @@ public class DadosDemonstracao implements ApplicationRunner {
         return receita;
     }
 
-    private void avaliar(Receita receita, Usuario usuario, boolean funcionou, int... notas) {
-        var avaliacao = new Avaliacao(receita, usuario);
-        avaliacao.registrar(funcionou, notas[0], notas[1], notas[2], notas[3], notas[4]);
-        avaliacoes.save(avaliacao);
-    }
 }
