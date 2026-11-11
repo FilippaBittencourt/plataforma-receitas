@@ -5,6 +5,7 @@ import java.time.Instant;
 import br.com.cookie.api.receita.Origem;
 import br.com.cookie.api.receita.ReceitaDtos.CategoriaResumo;
 import br.com.cookie.api.usuario.StatusUsuario;
+import br.com.cookie.api.usuario.TipoUsuario;
 import br.com.cookie.api.usuario.UsuarioDtos.AutorResponse;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -36,5 +37,9 @@ public final class ModeracaoDtos {
 
     public record UsuarioDenunciado(Integer id, String nome, String nomeUsuario, StatusUsuario status,
             long denunciasAbertas, String ultimoMotivo) {
+    }
+
+    public record UsuarioGestao(Integer id, String nome, String nomeUsuario, String email, StatusUsuario status,
+            TipoUsuario tipo, Instant dataCadastro) {
     }
 }

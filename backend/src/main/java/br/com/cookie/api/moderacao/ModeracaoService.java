@@ -20,6 +20,7 @@ import br.com.cookie.api.moderacao.ModeracaoDtos.DenunciaResponse;
 import br.com.cookie.api.moderacao.ModeracaoDtos.ReceitaNaFila;
 import br.com.cookie.api.moderacao.ModeracaoDtos.ResumoModeracao;
 import br.com.cookie.api.moderacao.ModeracaoDtos.UsuarioDenunciado;
+import br.com.cookie.api.moderacao.ModeracaoDtos.UsuarioGestao;
 import br.com.cookie.api.receita.Receita;
 import br.com.cookie.api.receita.ReceitaDtos.CategoriaResumo;
 import br.com.cookie.api.receita.ReceitaRepository;
@@ -133,6 +134,19 @@ public class ModeracaoService {
                             lista.size(), lista.getFirst().getMotivo());
                 })
                 .sorted((a, b) -> Long.compare(b.denunciasAbertas(), a.denunciasAbertas()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<UsuarioGestao> usuariosParaGestao(String termo) {
+        String busca = termo == null ? "" : termo.trim().toLowerCase(java.util.Locale.ROOT);
+        return usuarioRepository.findAll().stream()
+                .filter(u -> busca.isEmpty() || u.getNome().toLowerCase(java.util.Locale.ROOT).contains(busca)
+                        || u.getNomeUsuario().toLowerCase(java.util.Locale.ROOT).contains(busca)
+                        || u.getEmail().toLowerCase(java.util.Locale.ROOT).contains(busca))
+                .sorted(java.util.Comparator.comparing(Usuario::getNome, String.CASE_INSENSITIVE_ORDER))
+                .map(u -> new UsuarioGestao(u.getId(), u.getNome(), u.getNomeUsuario(), u.getEmail(),
+                        u.getStatus(), u.getTipo(), u.getDataCadastro()))
                 .toList();
     }
 

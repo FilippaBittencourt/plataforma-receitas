@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, LogOut, Plus, Settings, ShieldCheck, User, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,10 +16,12 @@ import {
 import { useAuth } from "@/lib/auth";
 import { initialsOf, type Account } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { apiUrl } from "@/lib/api";
 
 export function UserAvatar({ user, className }: { user: Account; className?: string }) {
   return (
     <Avatar className={cn("h-9 w-9 border border-border", className)}>
+      {user.fotoPerfil && <AvatarImage src={apiUrl(user.fotoPerfil)} alt={user.name} />}
       <AvatarFallback className="bg-accent text-xs font-semibold text-accent-foreground">
         {initialsOf(user.name)}
       </AvatarFallback>
@@ -68,7 +70,7 @@ export function UserMenu({ user }: { user: Account }) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
-          <Link to="/publicar">
+          <Link to="/publicar" search={{ editar: undefined }}>
             <Plus width={16} height={16} /> Publicar receita
           </Link>
         </DropdownMenuItem>

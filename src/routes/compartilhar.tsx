@@ -17,17 +17,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { categories } from "@/lib/mock-data";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/compartilhar")({
   head: () => ({
     meta: [
-      { title: "Indicar receita externa por link — Cookie" },
+      { title: "Indicar receita externa por link — Lipapa" },
       {
         name: "description",
         content:
           "Compartilhe o link de uma receita de fora da plataforma e deixe a comunidade testar e avaliar.",
       },
-      { property: "og:title", content: "Indicar receita externa por link — Cookie" },
+      { property: "og:title", content: "Indicar receita externa por link — Lipapa" },
       {
         property: "og:description",
         content: "Traga receitas de blogs e vídeos para serem testadas pela comunidade.",
@@ -60,20 +61,34 @@ function CompartilharForm() {
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [nome, setNome] = useState("");
-  const [errors, setErrors] = useState<{ url?: string; nome?: string }>({});
+  const [categoria, setCategoria] = useState("");
+  const [errors, setErrors] = useState<{ url?: string; nome?: string; categoria?: string }>({});
   const parsed = parseUrl(url);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const next: typeof errors = {};
     if (!parsed) next.url = "Cole um link completo, começando com https://";
     if (nome.trim().length < 3) next.nome = "Informe o nome da receita.";
+    if (!categoria) next.categoria = "Escolha uma categoria.";
     setErrors(next);
-    if (next.url || next.nome) return;
-    toast.success("Link enviado para curadoria", {
-      description: "Protótipo: nenhum dado é salvo.",
-    });
-    navigate({ to: "/ranking" });
+    if (next.url || next.nome || next.categoria) return;
+    const data = new FormData(e.currentTarget);
+    try {
+      await api("/api/receitas/indicacoes", {
+        method: "POST",
+        body: JSON.stringify({
+          urlFonte: parsed!.toString(),
+          titulo: nome.trim(),
+          categoria,
+          motivo: data.get("motivo"),
+        }),
+      });
+      toast.success("Link enviado para curadoria");
+      navigate({ to: "/perfil" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar o link.");
+    }
   };
 
   return (
@@ -117,7 +132,8 @@ function CompartilharForm() {
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{url}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Título, foto e tempo serão extraídos automaticamente.
+                  O link e o nome informado serão enviados para curadoria. Os dados do site externo
+                  não são importados automaticamente.
                 </p>
               </div>
             </div>
@@ -140,8 +156,11 @@ function CompartilharForm() {
             </div>
             <div>
               <Label>Categoria</Label>
-              <Select>
-                <SelectTrigger className="mt-2 rounded-xl bg-background">
+              <Select value={categoria} onValueChange={setCategoria}>
+                <SelectTrigger
+                  aria-invalid={Boolean(errors.categoria)}
+                  className="mt-2 rounded-xl bg-background"
+                >
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -152,12 +171,14 @@ function CompartilharForm() {
                   ))}
                 </SelectContent>
               </Select>
+              <FieldError>{errors.categoria}</FieldError>
             </div>
           </div>
           <div className="mt-4">
             <Label htmlFor="motivo">Por que vale a pena testar?</Label>
             <Textarea
               id="motivo"
+              name="motivo"
               rows={4}
               placeholder="Ex.: fiz duas vezes e as medidas bateram perfeitamente."
               className="mt-2 rounded-xl bg-background"

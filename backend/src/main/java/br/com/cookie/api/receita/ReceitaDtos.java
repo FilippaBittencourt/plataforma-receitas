@@ -128,11 +128,11 @@ public final class ReceitaDtos {
 
     /** Receita na lista "minhas receitas", com a situação na curadoria. */
     public record MinhaReceita(Integer id, String titulo, Origem origem, StatusReceita status,
-            CategoriaResumo categoria, Instant dataPublicacao, Instant dataModeracao,
+            String fotoPrincipal, CategoriaResumo categoria, Instant dataPublicacao, Instant dataModeracao,
             EstatisticasResumo estatisticas) {
 
         static MinhaReceita de(Receita r) {
-            return new MinhaReceita(r.getId(), r.getTitulo(), r.getOrigem(), r.getStatus(),
+            return new MinhaReceita(r.getId(), r.getTitulo(), r.getOrigem(), r.getStatus(), r.getFotoPrincipal(),
                     CategoriaResumo.de(r.getCategoria()), r.getDataPublicacao(), r.getDataModeracao(),
                     EstatisticasResumo.de(r.getEstatistica()));
         }

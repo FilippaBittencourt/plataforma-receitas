@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { Shell } from "@/components/site/Shell";
 import { RecipeCard } from "@/components/site/RecipeCard";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import {
   Select,
@@ -14,7 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { categories, recipes } from "@/lib/mock-data";
+import { categories } from "@/lib/mock-data";
+import { searchRecipes } from "@/lib/recipes-api";
+import type { Recipe } from "@/lib/mock-data";
 
 type SearchParams = { q: string };
 
@@ -24,13 +27,13 @@ export const Route = createFileRoute("/buscar")({
   }),
   head: () => ({
     meta: [
-      { title: "Buscar receitas testadas — Cookie" },
+      { title: "Buscar receitas testadas — Lipapa" },
       {
         name: "description",
         content:
           "Filtre receitas por categoria, tempo, dificuldade e taxa de sucesso da comunidade.",
       },
-      { property: "og:title", content: "Buscar receitas testadas — Cookie" },
+      { property: "og:title", content: "Buscar receitas testadas — Lipapa" },
       { property: "og:description", content: "Filtros por sucesso real, tempo e dificuldade." },
     ],
   }),
@@ -44,28 +47,55 @@ function BuscarPage() {
   const [cats, setCats] = useState<string[]>([]);
   const [onlyVerified, setOnlyVerified] = useState(false);
   const [minSuccess, setMinSuccess] = useState(0);
+  const [ingredient, setIngredient] = useState("");
   const [sort, setSort] = useState("relevancia");
-
-  const results = useMemo(() => {
-    const t = q.toLowerCase().trim();
-    let list = recipes.filter((r) => {
-      const matches =
-        !t ||
-        r.title.toLowerCase().includes(t) ||
-        r.category.toLowerCase().includes(t) ||
-        r.author.toLowerCase().includes(t);
-      const catOk = cats.length === 0 || cats.includes(r.category);
-      return matches && catOk && (!onlyVerified || r.verified) && r.successRate >= minSuccess;
-    });
-    list = [...list].sort((a, b) => {
-      if (sort === "nota") return b.rating - a.rating;
-      if (sort === "sucesso") return b.successRate - a.successRate;
-      if (sort === "testadas") return b.testedCount - a.testedCount;
-      if (sort === "tempo") return a.timeMinutes - b.timeMinutes;
-      return b.reviewsCount - a.reviewsCount;
-    });
-    return list;
-  }, [q, cats, onlyVerified, minSuccess, sort]);
+  const [results, setResults] = useState<Recipe[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    const order =
+      sort === "nota" || sort === "relevancia"
+        ? "melhores"
+        : sort === "testadas"
+          ? "mais-testadas"
+          : "recentes";
+    const categoriasSelecionadas = cats.length ? cats : [""];
+    Promise.all(
+      categoriasSelecionadas.map((categoria) =>
+        searchRecipes({
+          q,
+          categoria: categoria || undefined,
+          ingrediente: ingredient.trim() || undefined,
+          verificadas: onlyVerified,
+          ordem: order,
+          tamanho: 50,
+        }),
+      ),
+    )
+      .then((groups) => {
+        if (active) {
+          const unique = new Map(groups.flat().map((r) => [r.id, r]));
+          setResults(
+            [...unique.values()]
+              .filter((r) => r.successRate >= minSuccess)
+              .sort((a, b) =>
+                sort === "sucesso"
+                  ? b.successRate - a.successRate
+                  : sort === "tempo"
+                    ? a.timeMinutes - b.timeMinutes
+                    : 0,
+              ),
+          );
+          setError("");
+        }
+      })
+      .catch((e) => {
+        if (active) setError(e instanceof Error ? e.message : "Erro ao buscar receitas.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [q, cats, onlyVerified, minSuccess, sort, ingredient]);
 
   return (
     <Shell>
@@ -76,6 +106,11 @@ function BuscarPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {results.length} receitas encontradas · ordenadas por experiência real da comunidade
         </p>
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         <form
           className="relative mt-6 max-w-xl"
@@ -116,11 +151,9 @@ function BuscarPage() {
                   <div key={c.id} className="flex items-center gap-2.5">
                     <Checkbox
                       id={c.id}
-                      checked={cats.includes(c.label)}
+                      checked={cats.includes(c.id)}
                       onCheckedChange={(v) =>
-                        setCats((prev) =>
-                          v ? [...prev, c.label] : prev.filter((x) => x !== c.label),
-                        )
+                        setCats((prev) => (v ? [...prev, c.id] : prev.filter((x) => x !== c.id)))
                       }
                     />
                     <Label htmlFor={c.id} className="text-sm font-normal text-foreground">
@@ -129,6 +162,17 @@ function BuscarPage() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="mt-6">
+              <Label htmlFor="ingrediente-busca">Ingrediente</Label>
+              <Input
+                id="ingrediente-busca"
+                value={ingredient}
+                onChange={(e) => setIngredient(e.target.value)}
+                placeholder="Ex.: farinha de trigo"
+                className="mt-2 rounded-xl bg-background"
+              />
             </div>
 
             <div className="mt-6 border-t border-border pt-6">
@@ -165,6 +209,7 @@ function BuscarPage() {
               className="mt-6 w-full rounded-full"
               onClick={() => {
                 setCats([]);
+                setIngredient("");
                 setOnlyVerified(false);
                 setMinSuccess(0);
               }}
@@ -186,6 +231,7 @@ function BuscarPage() {
                   <SelectItem value="sucesso">Maior taxa de sucesso</SelectItem>
                   <SelectItem value="testadas">Mais testadas</SelectItem>
                   <SelectItem value="tempo">Menor tempo de preparo</SelectItem>
+                  <SelectItem value="recentes">Mais recentes</SelectItem>
                 </SelectContent>
               </Select>
             </div>

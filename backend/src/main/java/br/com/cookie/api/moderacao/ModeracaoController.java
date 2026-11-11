@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,6 +18,7 @@ import br.com.cookie.api.moderacao.ModeracaoDtos.DenunciaResponse;
 import br.com.cookie.api.moderacao.ModeracaoDtos.ReceitaNaFila;
 import br.com.cookie.api.moderacao.ModeracaoDtos.ResumoModeracao;
 import br.com.cookie.api.moderacao.ModeracaoDtos.UsuarioDenunciado;
+import br.com.cookie.api.moderacao.ModeracaoDtos.UsuarioGestao;
 import br.com.cookie.api.receita.StatusReceita;
 import br.com.cookie.api.usuario.StatusUsuario;
 
@@ -79,6 +81,11 @@ public class ModeracaoController {
     @GetMapping("/usuarios")
     List<UsuarioDenunciado> usuariosDenunciados() {
         return moderacao.usuariosDenunciados();
+    }
+
+    @GetMapping("/usuarios/gestao")
+    List<UsuarioGestao> usuariosParaGestao(@RequestParam(required = false) String q) {
+        return moderacao.usuariosParaGestao(q);
     }
 
     @PostMapping("/usuarios/{id}/suspender")

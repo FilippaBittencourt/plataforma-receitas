@@ -3,6 +3,7 @@ import { Clock, Users } from "lucide-react";
 import type { Recipe } from "@/lib/mock-data";
 import { Stars } from "./Stars";
 import { VerifiedBadge } from "./VerifiedBadge";
+import { RecipePhotoPlaceholder } from "./RecipePhotoPlaceholder";
 
 export function RecipeCard({ recipe }: { recipe: Recipe }) {
   return (
@@ -12,14 +13,18 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
       className="group flex flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-lifted"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        <img
-          src={recipe.image}
-          alt={recipe.title}
-          loading="lazy"
-          width={1024}
-          height={768}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-        />
+        {recipe.hasPhoto === false ? (
+          <RecipePhotoPlaceholder className="h-full w-full flex-col" />
+        ) : (
+          <img
+            src={recipe.image}
+            alt={recipe.title}
+            loading="lazy"
+            width={1024}
+            height={768}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        )}
         {recipe.verified && (
           <span className="absolute left-3 top-3">
             <VerifiedBadge className="bg-card/95 backdrop-blur" label="Verificada" />

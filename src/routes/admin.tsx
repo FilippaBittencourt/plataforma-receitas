@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Ban, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/site/RequireAuth";
@@ -7,12 +7,46 @@ import { Shell } from "@/components/site/Shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { moderationQueue, moderationUsers } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { DeleteRecipeButton } from "@/components/site/DeleteRecipeButton";
+
+type QueueItem = {
+  id: number;
+  titulo: string;
+  origem: string;
+  urlFonte: string | null;
+  categoria: { nome: string };
+  autor: { nome: string; nomeUsuario: string } | null;
+  dataPublicacao: string;
+};
+type Report = {
+  id: number;
+  trechoComentario: string | null;
+  motivo: string;
+  idComentario: number | null;
+  denunciado: { nome: string; nomeUsuario: string } | null;
+  dataDenuncia: string;
+};
+type ManagedUser = {
+  id: number;
+  nome: string;
+  nomeUsuario: string;
+  email: string;
+  status: string;
+  tipo: string;
+  dataCadastro: string;
+};
+type Summary = {
+  receitasPendentes: number;
+  aprovadasHoje: number;
+  recusadasHoje: number;
+  denunciasAbertas: number;
+};
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Moderação — Cookie" },
+      { title: "Moderação — Lipapa" },
       {
         name: "description",
         content:
@@ -35,29 +69,86 @@ function AdminPage() {
 }
 
 function Moderation() {
-  const [queue, setQueue] = useState(moderationQueue);
-  const [users, setUsers] = useState(moderationUsers);
-  const [resolved, setResolved] = useState({ approved: 34, rejected: 6 });
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [userQuery, setUserQuery] = useState("");
+  const [reports, setReports] = useState<Report[]>([]);
+  const [summary, setSummary] = useState<Summary>({
+    receitasPendentes: 0,
+    aprovadasHoje: 0,
+    recusadasHoje: 0,
+    denunciasAbertas: 0,
+  });
+  const [error, setError] = useState("");
+  const reload = useCallback(async () => {
+    try {
+      const [q, u, d, s] = await Promise.all([
+        api<QueueItem[]>("/api/moderacao/receitas"),
+        api<ManagedUser[]>(`/api/moderacao/usuarios/gestao?q=${encodeURIComponent(userQuery)}`),
+        api<Report[]>("/api/moderacao/denuncias"),
+        api<Summary>("/api/moderacao/resumo"),
+      ]);
+      setQueue(q);
+      setUsers(u);
+      setReports(d);
+      setSummary(s);
+      setError("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível carregar a moderação.");
+    }
+  }, [userQuery]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
-  const resolve = (id: string, approved: boolean) => {
-    setQueue((q) => q.filter((item) => item.id !== id));
-    setResolved((r) =>
-      approved ? { ...r, approved: r.approved + 1 } : { ...r, rejected: r.rejected + 1 },
-    );
-    toast.success(approved ? "Item aprovado" : "Item recusado");
+  const decideRecipe = async (id: number, approved: boolean) => {
+    try {
+      await api(`/api/moderacao/receitas/${id}/${approved ? "aprovar" : "recusar"}`, {
+        method: "POST",
+      });
+      toast.success(approved ? "Receita aprovada" : "Receita recusada");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao moderar receita.");
+    }
   };
-
-  const toggleSuspension = (id: string) => {
-    const target = users.find((u) => u.id === id);
-    if (!target) return;
-    const status = target.status === "ativo" ? "suspenso" : "ativo";
-    setUsers((list) => list.map((u) => (u.id === id ? { ...u, status } : u)));
-    toast.success(
-      status === "suspenso" ? `${target.handle} foi suspenso` : `${target.handle} foi reativado`,
-    );
+  const deleteRecipe = async (item: QueueItem) => {
+    await api(`/api/receitas/${item.id}`, { method: "DELETE" });
+    toast.success("Receita excluída");
+    await reload();
   };
-
-  const openReports = users.filter((u) => u.status === "ativo").length;
+  const decideReport = async (report: Report, hide: boolean) => {
+    try {
+      if (report.idComentario && hide)
+        await api(`/api/moderacao/comentarios/${report.idComentario}/ocultar`, { method: "POST" });
+      await api(`/api/moderacao/denuncias/${report.id}/resolver`, { method: "POST" });
+      toast.success("Denúncia resolvida");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao resolver denúncia.");
+    }
+  };
+  const restoreComment = async (id: number) => {
+    try {
+      await api(`/api/moderacao/comentarios/${id}/restaurar`, { method: "POST" });
+      toast.success("Comentário restaurado");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao restaurar comentário.");
+    }
+  };
+  const toggleSuspension = async (u: ManagedUser) => {
+    try {
+      await api(
+        `/api/moderacao/usuarios/${u.id}/${u.status === "ATIVO" ? "suspender" : "reativar"}`,
+        { method: "POST" },
+      );
+      toast.success(u.status === "ATIVO" ? "Conta suspensa" : "Conta reativada");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao atualizar conta.");
+    }
+  };
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-12">
@@ -66,15 +157,15 @@ function Moderation() {
         <h1 className="text-3xl font-semibold text-foreground">Moderação</h1>
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
-        Curadoria manual do que entra na plataforma — a base da confiança do Cookie.
+        Curadoria manual do que entra na plataforma — a base da confiança da Lipapa.
       </p>
 
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: "Na fila", value: queue.length },
-          { label: "Aprovadas hoje", value: resolved.approved },
-          { label: "Recusadas hoje", value: resolved.rejected },
-          { label: "Denúncias abertas", value: openReports },
+          { label: "Na fila", value: summary.receitasPendentes },
+          { label: "Aprovadas hoje", value: summary.aprovadasHoje },
+          { label: "Recusadas hoje", value: summary.recusadasHoje },
+          { label: "Denúncias abertas", value: summary.denunciasAbertas },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl border border-border bg-card p-4 shadow-soft">
             <p className="font-display text-2xl font-semibold text-foreground">{s.value}</p>
@@ -83,15 +174,29 @@ function Moderation() {
         ))}
       </div>
 
-      <Tabs defaultValue="fila" className="mt-10">
+      <Tabs
+        defaultValue="fila"
+        className="mt-10"
+        onValueChange={(tab) => {
+          if (tab === "usuarios") void reload();
+        }}
+      >
         <TabsList className="rounded-full bg-secondary p-1">
           <TabsTrigger value="fila" className="rounded-full px-4">
             Fila de revisão ({queue.length})
           </TabsTrigger>
+          <TabsTrigger value="denuncias" className="rounded-full px-4">
+            Denúncias ({reports.length})
+          </TabsTrigger>
           <TabsTrigger value="usuarios" className="rounded-full px-4">
-            Usuários denunciados ({users.length})
+            Usuários ({users.length})
           </TabsTrigger>
         </TabsList>
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         <TabsContent value="fila" className="mt-6">
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
@@ -106,27 +211,32 @@ function Moderation() {
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="secondary" className="rounded-full">
-                          {item.type}
+                          {item.origem === "EXTERNA" ? "Link externo" : "Receita"}
                         </Badge>
-                        <p className="font-medium text-foreground">{item.title}</p>
+                        <p className="font-medium text-foreground">{item.titulo}</p>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {item.author} · {item.reason} · {item.date}
+                        {item.autor?.nomeUsuario ?? "Autor removido"} · {item.categoria.nome} ·{" "}
+                        {new Date(item.dataPublicacao).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
                     <div className="flex gap-2">
+                      <DeleteRecipeButton
+                        recipeTitle={item.titulo}
+                        onDelete={() => deleteRecipe(item)}
+                      />
                       <Button
                         size="sm"
                         variant="outline"
                         className="rounded-full"
-                        onClick={() => resolve(item.id, false)}
+                        onClick={() => void decideRecipe(item.id, false)}
                       >
                         <X width={14} height={14} /> Recusar
                       </Button>
                       <Button
                         size="sm"
                         className="rounded-full"
-                        onClick={() => resolve(item.id, true)}
+                        onClick={() => void decideRecipe(item.id, true)}
                       >
                         <Check width={14} height={14} /> Aprovar
                       </Button>
@@ -138,42 +248,124 @@ function Moderation() {
           </div>
         </TabsContent>
 
+        <TabsContent value="denuncias" className="mt-6">
+          <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
+            {reports.length === 0 ? (
+              <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+                Nenhuma denúncia aberta.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {reports.map((report) => (
+                  <li key={report.id} className="flex flex-wrap items-center gap-4 px-6 py-5">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">
+                        {report.denunciado?.nomeUsuario ?? "Usuário"} · {report.motivo}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {report.trechoComentario || "Denúncia de perfil"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => void decideReport(report, false)}
+                    >
+                      Manter e resolver
+                    </Button>
+                    {report.idComentario && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="rounded-full"
+                          onClick={() => void decideReport(report, true)}
+                        >
+                          Ocultar comentário
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="rounded-full"
+                          onClick={() => void restoreComment(report.idComentario!)}
+                        >
+                          Restaurar comentário
+                        </Button>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </TabsContent>
+
         <TabsContent value="usuarios" className="mt-6">
+          <label htmlFor="busca-usuarios" className="sr-only">
+            Buscar usuários
+          </label>
+          <input
+            id="busca-usuarios"
+            value={userQuery}
+            onChange={(event) => setUserQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void reload();
+              }
+            }}
+            placeholder="Buscar por nome, usuário ou e-mail"
+            className="mb-4 h-11 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none focus:border-ring"
+          />
+          <div className="mb-3 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              onClick={() => void reload()}
+            >
+              Buscar
+            </Button>
+          </div>
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
             <ul className="divide-y divide-border">
               {users.map((u) => (
                 <li key={u.id} className="flex flex-wrap items-center gap-4 px-6 py-5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-foreground">{u.name}</p>
-                      <span className="text-xs text-muted-foreground">{u.handle}</span>
+                      <p className="font-medium text-foreground">{u.nome}</p>
+                      <span className="text-xs text-muted-foreground">{u.nomeUsuario}</span>
                       <Badge
-                        variant={u.status === "suspenso" ? "destructive" : "secondary"}
+                        variant={u.status === "SUSPENSO" ? "destructive" : "secondary"}
                         className="rounded-full"
                       >
-                        {u.status === "suspenso" ? "Suspenso" : "Ativo"}
+                        {u.status === "SUSPENSO" ? "Suspenso" : "Ativo"}
                       </Badge>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {u.reports} {u.reports === 1 ? "denúncia" : "denúncias"} · {u.reason}
+                      {u.email} · {u.tipo === "ADMINISTRADOR" ? "Administrador" : "Usuário"} ·
+                      cadastro em {new Date(u.dataCadastro).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() => toggleSuspension(u.id)}
-                  >
-                    {u.status === "suspenso" ? (
-                      <>
-                        <RotateCcw width={14} height={14} /> Reativar
-                      </>
-                    ) : (
-                      <>
-                        <Ban width={14} height={14} /> Suspender
-                      </>
-                    )}
-                  </Button>
+                  {u.tipo !== "ADMINISTRADOR" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={() => void toggleSuspension(u)}
+                    >
+                      {u.status === "SUSPENSO" ? (
+                        <>
+                          <RotateCcw width={14} height={14} /> Reativar
+                        </>
+                      ) : (
+                        <>
+                          <Ban width={14} height={14} /> Suspender
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>

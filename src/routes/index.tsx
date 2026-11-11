@@ -1,23 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, BadgeCheck, Camera, Ruler, Search, Timer } from "lucide-react";
-import heroImage from "@/assets/hero-food.jpg";
+import heroImage from "@/assets/hero-cookies.jpg";
 import { Shell } from "@/components/site/Shell";
 import { CategoryIcon } from "@/components/site/CategoryIcon";
 import { RecipeCard } from "@/components/site/RecipeCard";
 import { Button } from "@/components/ui/button";
-import { categories, recipes } from "@/lib/mock-data";
+import type { Recipe } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { searchRecipes, searchRecipesPage } from "@/lib/recipes-api";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Cookie — Receitas que realmente funcionam" },
+      { title: "Lipapa — Receitas que realmente funcionam" },
       {
         name: "description",
         content:
           "Descubra receitas avaliadas por medidas, tempo, rendimento e resultado real. Só o que a comunidade testou e aprovou.",
       },
-      { property: "og:title", content: "Cookie — Receitas que realmente funcionam" },
+      { property: "og:title", content: "Lipapa — Receitas que realmente funcionam" },
       {
         property: "og:description",
         content: "Receitas avaliadas por critérios objetivos e testadas pela comunidade.",
@@ -29,18 +32,46 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const navigate = useNavigate();
+  const { user, ready } = useAuth();
   const [q, setQ] = useState("");
-  const verified = recipes.filter((r) => r.verified);
+  const [featured, setFeatured] = useState<Recipe[]>([]);
+  const [verified, setVerified] = useState<Recipe[]>([]);
+  const [categories, setCategories] = useState<{ id: string; label: string; count: number }[]>([]);
+  const [totals, setTotals] = useState({ recipes: 0, verified: 0 });
+  const [error, setError] = useState("");
+  const reviewableRecipe = ready
+    ? featured.find((recipe) => recipe.authorId !== user?.id)
+    : undefined;
+  useEffect(() => {
+    Promise.all([
+      searchRecipes({ ordem: "mais-testadas", tamanho: 6 }),
+      searchRecipes({ verificadas: true, ordem: "melhores", tamanho: 6 }),
+      api<{ slug: string; nome: string; totalReceitas: number }[]>("/api/categorias"),
+      searchRecipesPage({ tamanho: 1 }),
+      searchRecipesPage({ verificadas: true, tamanho: 1 }),
+    ])
+      .then(([f, v, c, all, verifiedPage]) => {
+        setFeatured(f);
+        setVerified(v);
+        setCategories(
+          c.map((item) => ({ id: item.slug, label: item.nome, count: item.totalReceitas })),
+        );
+        setTotals({ recipes: all.total, verified: verifiedPage.total });
+      })
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : "Não foi possível carregar as receitas."),
+      );
+  }, []);
 
   return (
     <Shell>
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-5 pt-10 sm:pt-16">
-        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_1fr]">
+        <div className="grid items-start gap-6 lg:grid-cols-[1.05fr_1fr]">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-soft">
               <BadgeCheck width={14} height={14} className="text-verified" />
-              1.598 receitas verificadas pela comunidade
+              Receitas avaliadas pela comunidade
             </span>
             <h1 className="mt-6 text-4xl leading-[1.08] font-semibold text-foreground sm:text-5xl lg:text-[3.4rem]">
               Em meio a milhares de receitas, mostramos quais{" "}
@@ -66,6 +97,7 @@ function Home() {
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
+                aria-label="Buscar receitas"
                 placeholder="O que você quer cozinhar hoje?"
                 className="h-14 w-full rounded-full border border-border bg-card pl-13 pr-36 text-sm shadow-soft outline-none placeholder:text-muted-foreground focus:border-ring"
               />
@@ -76,9 +108,8 @@ function Home() {
 
             <div className="mt-8 flex flex-wrap gap-x-10 gap-y-4">
               {[
-                { value: "92%", label: "média de sucesso nas verificadas" },
-                { value: "48 mil", label: "avaliações com critérios" },
-                { value: "12 mil", label: "fotos de resultado real" },
+                { value: totals.recipes.toLocaleString("pt-BR"), label: "receitas aprovadas" },
+                { value: totals.verified.toLocaleString("pt-BR"), label: "receitas verificadas" },
               ].map((s) => (
                 <div key={s.label}>
                   <p className="font-display text-2xl font-semibold text-foreground">{s.value}</p>
@@ -96,20 +127,30 @@ function Home() {
               alt="Bolo caseiro sendo fatiado sobre toalha de linho"
               width={1408}
               height={1008}
-              className="aspect-[4/3] w-full rounded-[2rem] object-cover shadow-lifted"
+              className="aspect-[4/3] w-full rounded-[2rem] object-cover object-center shadow-lifted"
             />
-            <div className="absolute -bottom-6 left-6 right-10 rounded-2xl border border-border bg-card/95 p-4 shadow-lifted backdrop-blur sm:right-auto sm:w-64">
-              <p className="text-xs text-muted-foreground">Bolo de fubá cremoso</p>
-              <p className="mt-1 text-sm font-semibold text-foreground">
-                96% das pessoas tiveram sucesso
-              </p>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-                <div className="h-full w-[96%] rounded-full bg-verified" />
-              </div>
-            </div>
+            {featured[0] && (
+              <Link
+                to="/receita/$recipeId"
+                params={{ recipeId: featured[0].id }}
+                className="absolute -bottom-6 left-6 right-10 rounded-2xl border border-border bg-card/95 p-4 shadow-lifted backdrop-blur sm:right-auto sm:w-64"
+              >
+                <p className="text-xs text-muted-foreground">Mais testada pela comunidade</p>
+                <p className="mt-1 text-sm font-semibold text-foreground">{featured[0].title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {featured[0].testedCount.toLocaleString("pt-BR")} avaliações ·{" "}
+                  {featured[0].successRate}% de sucesso
+                </p>
+              </Link>
+            )}
           </div>
         </div>
       </section>
+      {error && (
+        <p role="alert" className="mx-auto mt-6 max-w-6xl px-5 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       {/* Criteria strip */}
       <section className="mx-auto mt-24 max-w-6xl px-5">
@@ -167,9 +208,11 @@ function Home() {
       <section className="mx-auto mt-20 max-w-6xl px-5">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold text-foreground">Em destaque esta semana</h2>
+            <h2 className="text-2xl font-semibold text-foreground">
+              Mais testadas pela comunidade
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              As receitas mais testadas nos últimos 7 dias.
+              As receitas aprovadas mais testadas pela comunidade.
             </p>
           </div>
           <Link
@@ -181,7 +224,7 @@ function Home() {
           </Link>
         </div>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.slice(0, 3).map((r) => (
+          {featured.slice(0, 3).map((r) => (
             <RecipeCard key={r.id} recipe={r} />
           ))}
         </div>
@@ -195,7 +238,7 @@ function Home() {
             <h2 className="text-2xl font-semibold text-foreground">Receitas verificadas</h2>
           </div>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            Mais de 300 avaliações, taxa de sucesso acima de 85% e medidas confirmadas por editores.
+            Pelo menos 10 avaliações, nota média mínima de 4,0 e sucesso em 80% dos testes.
           </p>
           <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {verified.slice(0, 3).map((r) => (
@@ -216,12 +259,20 @@ function Home() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild className="rounded-full px-6">
-              <Link to="/receita/$recipeId/avaliar" params={{ recipeId: "cookies-caramelo" }}>
-                Avaliar uma receita
-              </Link>
+              {reviewableRecipe ? (
+                <Link to="/receita/$recipeId/avaliar" params={{ recipeId: reviewableRecipe.id }}>
+                  Avaliar uma receita
+                </Link>
+              ) : (
+                <Link to="/buscar" search={{ q: "" }}>
+                  Explorar receitas
+                </Link>
+              )}
             </Button>
             <Button asChild variant="outline" className="rounded-full px-6">
-              <Link to="/publicar">Publicar receita</Link>
+              <Link to="/publicar" search={{ editar: undefined }}>
+                Publicar receita
+              </Link>
             </Button>
           </div>
         </div>

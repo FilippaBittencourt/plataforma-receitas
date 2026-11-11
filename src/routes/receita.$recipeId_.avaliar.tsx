@@ -9,28 +9,33 @@ import { Shell } from "@/components/site/Shell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { criteriaLabels, getRecipe, type Criteria, type Recipe } from "@/lib/mock-data";
+import { criteriaLabels, type Criteria, type Recipe } from "@/lib/mock-data";
+import { getRecipe } from "@/lib/recipes-api";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/receita/$recipeId_/avaliar")({
-  loader: ({ params }) => {
-    const recipe = getRecipe(params.recipeId);
-    if (!recipe) throw notFound();
-    return { recipe };
+  loader: async ({ params }) => {
+    try {
+      return { recipe: await getRecipe(params.recipeId) };
+    } catch {
+      throw notFound();
+    }
   },
   head: ({ loaderData }) => ({
     meta: [
       {
         title: loaderData
-          ? `Avaliar ${loaderData.recipe.title} — Cookie`
-          : "Avaliar receita — Cookie",
+          ? `Avaliar ${loaderData.recipe.title} — Lipapa`
+          : "Avaliar receita — Lipapa",
       },
       {
         name: "description",
         content:
           "Avalie medidas, tempo, rendimento, clareza e resultado final e conte se a receita funcionou.",
       },
-      { property: "og:title", content: "Avaliar receita — Cookie" },
+      { property: "og:title", content: "Avaliar receita — Lipapa" },
       {
         property: "og:description",
         content: "Sua avaliação por critérios ajuda outras pessoas a cozinhar com segurança.",
@@ -66,10 +71,27 @@ function CriterionStars({ value, onChange }: { value: number; onChange: (v: numb
 
 function AvaliarPage() {
   const { recipe } = Route.useLoaderData();
+  const { user } = useAuth();
   return (
     <Shell>
       <RequireAuth>
-        <AvaliarForm recipe={recipe} />
+        {user?.id === recipe.authorId ? (
+          <div className="mx-auto max-w-xl px-5 py-24 text-center">
+            <h1 className="text-2xl font-semibold text-foreground">
+              Você não pode avaliar sua própria receita
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              As avaliações precisam vir de outras pessoas da comunidade.
+            </p>
+            <Button asChild className="mt-6 rounded-full">
+              <Link to="/receita/$recipeId" params={{ recipeId: recipe.id }}>
+                Voltar para a receita
+              </Link>
+            </Button>
+          </div>
+        ) : (
+          <AvaliarForm recipe={recipe} />
+        )}
       </RequireAuth>
     </Shell>
   );
@@ -86,22 +108,40 @@ function AvaliarForm({ recipe }: { recipe: Recipe }) {
   });
   const [success, setSuccess] = useState<boolean | null>(null);
   const [comment, setComment] = useState("");
+  const [photo, setPhoto] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ success?: string; criteria?: string }>({});
 
   const filled = Object.values(scores).filter(Boolean).length;
   const average = filled > 0 ? Object.values(scores).reduce((a, b) => a + b, 0) / filled : 0;
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next: typeof errors = {};
     if (success === null) next.success = "Conte se a receita deu certo.";
     if (filled < criteriaLabels.length) next.criteria = "Dê uma nota para todos os critérios.";
     setErrors(next);
     if (next.success || next.criteria) return;
-    toast.success("Avaliação enviada!", {
-      description: "Protótipo: nada é salvo, mas obrigado por testar o fluxo.",
-    });
-    navigate({ to: "/receita/$recipeId", params: { recipeId: recipe.id } });
+    try {
+      await api(`/api/receitas/${recipe.id}/avaliacao`, {
+        method: "PUT",
+        body: JSON.stringify({
+          funcionou: success,
+          notas: {
+            medidas: scores.medidas,
+            tempo: scores.tempo,
+            rendimento: scores.rendimento,
+            clareza: scores.clareza,
+            resultado: scores.resultado,
+          },
+          comentario: comment || null,
+          fotoResultado: photo,
+        }),
+      });
+      toast.success("Avaliação enviada!");
+      navigate({ to: "/receita/$recipeId", params: { recipeId: recipe.id } });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível enviar a avaliação.");
+    }
   };
 
   return (
@@ -208,6 +248,7 @@ function AvaliarForm({ recipe }: { recipe: Recipe }) {
             icon={<Camera width={20} height={20} className="text-caramel" />}
             title="Envie a foto do seu resultado (opcional)"
             hint="PNG ou JPG até 5 MB"
+            onUploaded={setPhoto}
           />
         </section>
 

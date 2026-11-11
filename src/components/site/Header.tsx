@@ -83,7 +83,7 @@ export function Header() {
           ) : user ? (
             <>
               <Button asChild size="sm" className="hidden rounded-full sm:inline-flex">
-                <Link to="/publicar">
+                <Link to="/publicar" search={{ editar: undefined }}>
                   <Plus width={16} height={16} /> Nova receita
                 </Link>
               </Button>

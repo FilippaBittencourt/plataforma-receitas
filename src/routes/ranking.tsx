@@ -1,22 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { Shell } from "@/components/site/Shell";
 import { Stars } from "@/components/site/Stars";
 import { VerifiedBadge } from "@/components/site/VerifiedBadge";
-import { recipes } from "@/lib/mock-data";
+import type { Recipe } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { toRecipe, type RecipeDto } from "@/lib/recipes-api";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/ranking")({
   head: () => ({
     meta: [
-      { title: "Ranking das receitas mais confiáveis — Cookie" },
+      { title: "Ranking das receitas mais confiáveis — Lipapa" },
       {
         name: "description",
         content:
           "As receitas com maior nota, maior taxa de sucesso e maior número de testes da comunidade.",
       },
-      { property: "og:title", content: "Ranking das receitas mais confiáveis — Cookie" },
+      { property: "og:title", content: "Ranking das receitas mais confiáveis — Lipapa" },
       {
         property: "og:description",
         content: "Classificação por sucesso real, não por popularidade.",
@@ -34,8 +36,14 @@ const tabs = [
 
 function RankingPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("nota");
-
-  const list = [...recipes].sort((a, b) => {
+  const [items, setItems] = useState<Recipe[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api<RecipeDto[]>("/api/receitas/ranking?limite=50")
+      .then((data) => setItems(data.map(toRecipe)))
+      .catch((e) => setError(e instanceof Error ? e.message : "Falha ao carregar ranking."));
+  }, []);
+  const list = [...items].sort((a, b) => {
     if (tab === "sucesso") return b.successRate - a.successRate;
     if (tab === "testadas") return b.testedCount - a.testedCount;
     return b.rating - a.rating;
@@ -52,6 +60,11 @@ function RankingPage() {
           Classificação baseada em experiência real: nota média por critérios, percentual de sucesso
           e volume de testes.
         </p>
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         <div className="mt-8 inline-flex rounded-full border border-border bg-card p-1 shadow-soft">
           {tabs.map((t) => (
