@@ -31,6 +31,8 @@ services:
       APP_CORS_ORIGENS: ${APP_CORS_ORIGENS:?Configure a origem do frontend no arquivo .env}
       FRONTEND_URL: ${FRONTEND_URL:?Configure FRONTEND_URL no arquivo .env}
       UPLOADS_DIR: /data/uploads
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3.8-27b}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
       EMAIL_FROM: ${EMAIL_FROM:-Cookie <no-reply@example.com>}
       SMTP_HOST: ${SMTP_HOST:-localhost}
