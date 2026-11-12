@@ -1,11 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { ImagePlus, KeyRound, X } from "lucide-react";
-import { toast } from "sonner";
+import { ImagePlus, KeyRound } from "lucide-react";
+import { toast } from "@/lib/feedback";
 import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
 import { RequireAuth } from "@/components/site/RequireAuth";
 import { Shell } from "@/components/site/Shell";
-import { UserAvatar } from "@/components/site/UserMenu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,13 +23,13 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
 import type { Account } from "@/lib/mock-data";
-import { api } from "@/lib/api";
+import { api, apiUrl } from "@/lib/api";
 import { PhotoPicker } from "@/components/site/PhotoPicker";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Configurações — Lipapa" },
+      { title: "Configurações — Mums!" },
       { name: "description", content: "Edite seu perfil, e-mail, senha e notificações." },
       { name: "robots", content: "noindex" },
     ],
@@ -179,28 +178,14 @@ function ProfileForm({ user }: { user: Account }) {
   return (
     <Section title="Perfil" description="Como você aparece para a comunidade.">
       <form className="space-y-4" noValidate onSubmit={submit}>
-        <div className="flex items-center gap-4">
-          <UserAvatar user={{ ...user, name: name || user.name }} className="h-14 w-14 text-base" />
-          <div className="flex-1">
-            <PhotoPicker
-              icon={<ImagePlus className="text-caramel" />}
-              title="Foto de perfil"
-              hint="PNG, JPG ou WEBP · até 5 MB"
-              onUploaded={setFotoPerfil}
-            />
-            {fotoPerfil && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-2 rounded-full"
-                onClick={() => setFotoPerfil(null)}
-              >
-                <X width={14} height={14} /> Remover foto atual
-              </Button>
-            )}
-          </div>
-        </div>
+        <PhotoPicker
+          variant="avatar"
+          currentImage={fotoPerfil ? apiUrl(fotoPerfil) : null}
+          icon={<ImagePlus width={24} height={24} />}
+          title="Foto de perfil"
+          hint="PNG, JPG ou WEBP · até 5 MB"
+          onUploaded={setFotoPerfil}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="nome">Nome</Label>

@@ -19,6 +19,12 @@ Na primeira execução, o Spring Boot:
 
 A API fica em `http://localhost:8080`.
 
+### Assistente de receitas
+
+O botão flutuante de assistência usa a API da Groq com o modelo `qwen/qwen3.8-27b`. Para ativá-lo localmente, obtenha uma chave na Groq e inicie o backend com `GROQ_API_KEY=sua-chave ./mvnw spring-boot:run`. Em implantação Docker, coloque `GROQ_API_KEY` no `.env` antes de subir o Compose. A chave fica somente no backend; nunca a coloque em uma variável `VITE_*`.
+
+O assistente exige login e limita cada conta a 12 perguntas por minuto. Sem chave, o restante da plataforma continua funcionando e o assistente informa que não está configurado.
+
 **Contas de demonstração** (senha `demo1234`):
 
 | E-mail | Papel |
@@ -45,7 +51,7 @@ Tabelas: `categoria`, `usuario`, `receita`, `ingrediente`, `utiliza`, `passo_pre
 
 **Receita Verificada:** pelo menos 10 avaliações, média geral ≥ 4,0 e ≥ 80% das pessoas dizendo que a receita funcionou.
 
-Nunca edite uma migration que já rodou. Para mudar o banco, crie um arquivo novo com a próxima versão disponível (atualmente `V7__descricao.sql`).
+Nunca edite uma migration que já rodou. Para mudar o banco, crie um arquivo novo com a próxima versão disponível (atualmente `V9__descricao.sql`).
 
 ## Autenticação
 
@@ -114,6 +120,7 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 | 🔑 | `POST /api/receitas/indicacoes` | Indica uma receita externa por link. |
 | 🔑 | `PUT /api/receitas/{id}` | Edita (só o autor). A receita volta para a curadoria. |
 | 🔑 | `DELETE /api/receitas/{id}` | Exclui (autor ou moderação). |
+| 🔑 | `POST /api/assistente/receitas` | Pergunta ao assistente culinário; aceita contexto da receita aberta e histórico curto da conversa. |
 | 🔑 | `PUT /api/receitas/{id}/avaliacao` | Avalia ou reavalia: uma avaliação por pessoa. Aceita `comentario` e `fotoResultado` opcionais. |
 | 🔑 | `GET /api/receitas/{id}/avaliacao` | Minha avaliação desta receita. |
 | 🔑 | `DELETE /api/receitas/{id}/avaliacao` | Remove minha avaliação. |

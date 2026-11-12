@@ -22,11 +22,14 @@ import { api } from "@/lib/api";
 import { toRecipe, type RecipeDto } from "@/lib/recipes-api";
 import { apiUrl } from "@/lib/api";
 import { RecipePhotoPlaceholder } from "@/components/site/RecipePhotoPlaceholder";
+import { Clock, Users } from "lucide-react";
+import { Stars } from "@/components/site/Stars";
+import { VerifiedBadge } from "@/components/site/VerifiedBadge";
 
 export const Route = createFileRoute("/perfil")({
   head: () => ({
     meta: [
-      { title: "Meu perfil — Lipapa" },
+      { title: "Meu perfil — Mums!" },
       {
         name: "description",
         content: "Suas receitas publicadas, avaliações enviadas e resultados testados.",
@@ -53,6 +56,93 @@ function EmptyTab({ children, action }: { children: ReactNode; action?: ReactNod
       <p className="text-sm text-muted-foreground">{children}</p>
       {action}
     </div>
+  );
+}
+
+function PublishedRecipeCard({
+  item,
+  authorName,
+}: {
+  item: { id: string; title: string; status: string; fotoPrincipal?: string | null; recipe?: Recipe };
+  authorName: string;
+}) {
+  const recipe = item.recipe;
+  const hasPhoto = recipe ? recipe.hasPhoto !== false : Boolean(item.fotoPrincipal);
+  const image = recipe?.image ?? (item.fotoPrincipal ? apiUrl(item.fotoPrincipal) : "");
+  const statusLabel = item.status === "RECUSADA" ? "Recusada" : "Publicada";
+  const statusColor =
+    item.status === "RECUSADA"
+      ? "border-destructive/35 bg-card text-destructive"
+      : "border-verified/35 bg-card text-verified";
+  const showFooter = Boolean(recipe);
+  const content = (
+    <>
+      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-cream">
+        {hasPhoto ? (
+          <img
+            src={image}
+            alt={item.title}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        ) : (
+          <RecipePhotoPlaceholder className="h-full w-full flex-col" />
+        )}
+        {recipe?.verified && (
+          <span className="absolute left-3 top-3">
+            <VerifiedBadge className="bg-card/95 backdrop-blur" label="Verificada" />
+          </span>
+        )}
+        <Badge
+          variant="secondary"
+          role="status"
+          className={`absolute right-3 top-3 rounded-full border px-3 py-1 shadow-soft backdrop-blur ${statusColor}`}
+        >
+          {statusLabel}
+        </Badge>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-5">
+        <div className="min-h-[5.25rem]">
+          <p className="line-clamp-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {recipe?.category ?? "Receita publicada"}
+          </p>
+          <h3 className="mt-1 line-clamp-2 min-h-[3.25rem] text-lg font-semibold leading-snug text-foreground">
+            {item.title}
+          </h3>
+          <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">por {authorName}</p>
+        </div>
+        {recipe ? (
+          <div className="flex items-center gap-2">
+            <Stars value={recipe.rating} />
+            <span className="text-sm font-semibold text-foreground">{recipe.rating.toFixed(1)}</span>
+            <span className="text-sm text-muted-foreground">({recipe.reviewsCount})</span>
+          </div>
+        ) : null}
+        {showFooter && (
+          <div className="mt-auto rounded-2xl bg-cream px-3 py-2 text-xs text-muted-foreground">
+            {recipe && (
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-verified">{recipe.successRate}% deu certo</span>
+                <span className="flex items-center gap-1">
+                  <Users width={12} height={12} /> {recipe.testedCount}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock width={12} height={12} /> {recipe.timeMinutes} min
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+  const className = "group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-lifted";
+  return recipe ? (
+    <Link to="/receita/$recipeId" params={{ recipeId: recipe.id }} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <article className={className}>{content}</article>
   );
 }
 
@@ -166,7 +256,7 @@ function Profile() {
             <div>
               <div className="flex items-center gap-2 text-caramel">
                 <ShieldCheck width={18} height={18} />
-                <p className="text-xs font-semibold uppercase tracking-wider">Seu papel na Lipapa</p>
+                <p className="text-xs font-semibold uppercase tracking-wider">Seu papel na Mums!</p>
               </div>
               <h2 className="mt-2 font-display text-2xl font-semibold text-foreground">
                 Área de moderação
@@ -247,43 +337,10 @@ function Profile() {
 
         <TabsContent value="publicadas" className="mt-6">
           {published.length > 0 ? (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {published.map((r) =>
-                r.recipe ? (
-                  <RecipeCard key={r.id} recipe={r.recipe} />
-                ) : (
-                  <div
-                    key={r.id}
-                    className="flex h-full flex-col rounded-2xl border border-border bg-card p-5"
-                  >
-                    <p className="font-medium">{r.title}</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Status: {r.status === "PENDENTE" ? "Em análise" : "Recusada"}
-                    </p>
-                    {r.status !== "RECUSADA" && (
-                      <Button
-                        asChild
-                        size="sm"
-                        variant="outline"
-                        className="mt-3 w-fit rounded-full"
-                      >
-                        <Link to="/publicar" search={{ editar: r.id }}>
-                          Editar receita
-                        </Link>
-                      </Button>
-                    )}
-                    {r.fotoPrincipal ? (
-                      <img
-                        src={apiUrl(r.fotoPrincipal)}
-                        alt={r.title}
-                        className="mt-4 aspect-[4/3] w-full flex-1 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <RecipePhotoPlaceholder className="mt-4 min-h-40 flex-1 flex-col rounded-xl" />
-                    )}
-                  </div>
-                ),
-              )}
+            <div className="grid auto-rows-fr items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {published.map((item) => (
+                <PublishedRecipeCard key={item.id} item={item} authorName={user.name} />
+              ))}
             </div>
           ) : (
             <EmptyTab

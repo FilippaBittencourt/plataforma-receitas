@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Check } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/feedback";
 import { Logo } from "@/components/site/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,12 @@ import recipeImage from "@/assets/recipe-1.jpg";
 export const Route = createFileRoute("/cadastro")({
   head: () => ({
     meta: [
-      { title: "Criar conta — Lipapa" },
+      { title: "Criar conta — Mums!" },
       {
         name: "description",
         content: "Crie sua conta gratuita e comece a avaliar receitas por critérios objetivos.",
       },
-      { property: "og:title", content: "Criar conta — Lipapa" },
+      { property: "og:title", content: "Criar conta — Mums!" },
       {
         property: "og:description",
         content: "Junte-se à comunidade que testa receitas de verdade.",

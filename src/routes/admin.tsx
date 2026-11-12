@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/feedback";
 import { RequireAuth } from "@/components/site/RequireAuth";
 import { Shell } from "@/components/site/Shell";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ type Summary = {
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
-      { title: "Moderação — Lipapa" },
+      { title: "Moderação — Mums!" },
       {
         name: "description",
         content:
@@ -157,7 +157,7 @@ function Moderation() {
         <h1 className="text-3xl font-semibold text-foreground">Moderação</h1>
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
-        Curadoria manual do que entra na plataforma — a base da confiança da Lipapa.
+        Curadoria manual do que entra na plataforma — a base da confiança da Mums!.
       </p>
 
       <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">

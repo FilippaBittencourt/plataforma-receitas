@@ -1,7 +1,8 @@
 import { useState, type MouseEvent } from "react";
 import { LoaderCircle, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/feedback";
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,14 +18,14 @@ import {
 type DeleteRecipeButtonProps = {
   recipeTitle: string;
   buttonLabel?: string;
-  iconOnly?: boolean;
+  menuItem?: boolean;
   onDelete: () => Promise<void>;
 };
 
 export function DeleteRecipeButton({
   recipeTitle,
   buttonLabel = "Excluir",
-  iconOnly = false,
+  menuItem = false,
   onDelete,
 }: DeleteRecipeButtonProps) {
   const [open, setOpen] = useState(false);
@@ -45,22 +46,25 @@ export function DeleteRecipeButton({
 
   return (
     <AlertDialog open={open} onOpenChange={(nextOpen) => !deleting && setOpen(nextOpen)}>
-      <AlertDialogTrigger asChild>
-        <Button
-          size={iconOnly ? "icon" : "sm"}
-          variant={iconOnly ? "outline" : "destructive"}
-          className={
-            iconOnly
-              ? "h-10 w-10 rounded-full border-border bg-card text-destructive hover:bg-destructive/10 hover:text-destructive"
-              : "rounded-full"
-          }
-          aria-label={buttonLabel}
-          title={buttonLabel}
-        >
-          <Trash2 width={16} height={16} />
-          {!iconOnly && buttonLabel}
-        </Button>
-      </AlertDialogTrigger>
+      {menuItem ? (
+          <DropdownMenuItem
+            onSelect={(event) => {
+              // Keep the menu mounted while the confirmation dialog opens.
+              event.preventDefault();
+              setOpen(true);
+            }}
+            className="cursor-pointer rounded-xl text-destructive focus:bg-destructive/10 focus:text-destructive"
+          >
+            <Trash2 width={16} height={16} /> {buttonLabel}
+          </DropdownMenuItem>
+      ) : (
+        <AlertDialogTrigger asChild>
+          <Button size="sm" variant="destructive" className="rounded-full">
+            <Trash2 width={16} height={16} />
+            {buttonLabel}
+          </Button>
+        </AlertDialogTrigger>
+      )}
       <AlertDialogContent className="max-w-md rounded-[1.75rem] border-border bg-card p-6 shadow-soft sm:p-7">
           <AlertDialogHeader className="items-center text-center sm:items-start sm:text-left">
             <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-warm text-caramel">
@@ -81,7 +85,7 @@ export function DeleteRecipeButton({
             <AlertDialogAction
               disabled={deleting}
               onClick={(event) => void confirmDelete(event)}
-              className="h-10 rounded-full bg-caramel px-5 text-cream hover:bg-caramel/90"
+              className="h-10 rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary/90"
             >
               {deleting ? (
                 <LoaderCircle className="animate-spin" />

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, KeyRound } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/feedback";
 import { Logo } from "@/components/site/Logo";
 import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { api } from "@/lib/api";
 export const Route = createFileRoute("/recuperar-senha")({
   head: () => ({
     meta: [
-      { title: "Recuperar senha — Lipapa" },
+      { title: "Recuperar senha — Mums!" },
       { name: "description", content: "Use seu código de recuperação para redefinir a senha." },
       { name: "robots", content: "noindex" },
     ],

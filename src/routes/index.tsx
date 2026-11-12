@@ -14,13 +14,13 @@ import { useAuth } from "@/lib/auth";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Lipapa — Receitas que realmente funcionam" },
+      { title: "Mums! — Receitas que realmente funcionam" },
       {
         name: "description",
         content:
           "Descubra receitas avaliadas por medidas, tempo, rendimento e resultado real. Só o que a comunidade testou e aprovou.",
       },
-      { property: "og:title", content: "Lipapa — Receitas que realmente funcionam" },
+      { property: "og:title", content: "Mums! — Receitas que realmente funcionam" },
       {
         property: "og:description",
         content: "Receitas avaliadas por critérios objetivos e testadas pela comunidade.",

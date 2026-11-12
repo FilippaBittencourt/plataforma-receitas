@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api, apiUrl } from "@/lib/api";
-import { toast } from "sonner";
+import { requestText, toast } from "@/lib/feedback";
 import { toRecipe, type RecipeDto } from "@/lib/recipes-api";
 import type { Recipe } from "@/lib/mock-data";
 
@@ -31,8 +31,8 @@ export const Route = createFileRoute("/usuarios/$nomeUsuario")({
   },
   head: ({ loaderData }) => ({
     meta: [
-      { title: `${loaderData?.nome ?? "Perfil"} — Lipapa` },
-      { name: "description", content: loaderData?.bio ?? "Perfil público da comunidade Lipapa." },
+      { title: `${loaderData?.nome ?? "Perfil"} — Mums!` },
+      { name: "description", content: loaderData?.bio ?? "Perfil público da comunidade Mums!." },
     ],
   }),
   component: PublicProfilePage,
@@ -43,7 +43,13 @@ function PublicProfilePage() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [error, setError] = useState("");
   const reportProfile = async () => {
-    const motivo = window.prompt("Por que você está denunciando este perfil? (até 500 caracteres)");
+    const motivo = await requestText({
+      title: "Denunciar perfil",
+      description: "Conte à moderação por que este perfil deve ser analisado.",
+      placeholder: "Descreva o motivo da denúncia",
+      maxLength: 500,
+      confirmLabel: "Enviar denúncia",
+    });
     if (!motivo?.trim()) return;
     try {
       await api("/api/denuncias", {

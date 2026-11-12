@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/feedback";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
@@ -14,6 +14,8 @@ export function PhotoPicker({
   title,
   hint,
   className,
+  variant = "default",
+  currentImage,
   onUploaded,
 }: {
   id?: string;
@@ -21,11 +23,14 @@ export function PhotoPicker({
   title: string;
   hint: string;
   className?: string;
+  variant?: "default" | "avatar";
+  currentImage?: string | null;
   onUploaded?: (url: string | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string>();
   const [dragging, setDragging] = useState(false);
+  const image = preview ?? currentImage ?? undefined;
 
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
 
@@ -64,10 +69,50 @@ export function PhotoPicker({
         onChange={(e) => pick(e.target.files?.[0])}
       />
 
-      {preview ? (
+      {variant === "avatar" ? (
+        <div className="flex items-center gap-4 rounded-2xl border border-border bg-background p-4">
+          <div className="h-24 w-24 shrink-0 overflow-hidden rounded-full border-2 border-card bg-cream shadow-soft ring-1 ring-border">
+            {image ? (
+              <img src={image} alt="Prévia da foto de perfil" className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-caramel">
+                {icon}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-foreground">{image ? "Prévia da foto de perfil" : title}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {image ? "Assim sua foto vai aparecer no círculo do perfil." : hint}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => inputRef.current?.click()}
+              >
+                {image ? "Trocar foto" : "Escolher foto"}
+              </Button>
+              {image && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full"
+                  onClick={clear}
+                >
+                  <X width={14} height={14} /> Remover
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : image ? (
         <div className="relative overflow-hidden rounded-2xl border border-border">
           <img
-            src={preview}
+            src={image}
             alt="Prévia da foto escolhida"
             className="max-h-80 w-full object-cover"
           />

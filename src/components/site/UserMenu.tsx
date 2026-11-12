@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, LogOut, Plus, Settings, ShieldCheck, User, UserPlus, Users } from "lucide-react";
-import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -36,7 +35,6 @@ export function useSignOut() {
   return async () => {
     await navigate({ to: "/" });
     logout();
-    toast.success("Você saiu da sua conta");
   };
 }
 
@@ -100,7 +98,6 @@ export function UserMenu({ user }: { user: Account }) {
                 onSelect={() => {
                   if (account.id === user.id) return;
                   switchAccount(account.id);
-                  toast.success(`Conectado como ${account.name}`);
                 }}
               >
                 <UserAvatar user={account} className="h-7 w-7" />

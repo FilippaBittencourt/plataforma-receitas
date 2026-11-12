@@ -12,13 +12,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/ranking")({
   head: () => ({
     meta: [
-      { title: "Ranking das receitas mais confiáveis — Lipapa" },
+      { title: "Ranking das receitas mais confiáveis — Mums!" },
       {
         name: "description",
         content:
           "As receitas com maior nota, maior taxa de sucesso e maior número de testes da comunidade.",
       },
-      { property: "og:title", content: "Ranking das receitas mais confiáveis — Lipapa" },
+      { property: "og:title", content: "Ranking das receitas mais confiáveis — Mums!" },
       {
         property: "og:description",
         content: "Classificação por sucesso real, não por popularidade.",

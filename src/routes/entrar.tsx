@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Quote } from "lucide-react";
-import { toast } from "sonner";
 import { Logo } from "@/components/site/Logo";
 import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
 import { Button } from "@/components/ui/button";
@@ -27,12 +26,12 @@ export const Route = createFileRoute("/entrar")({
   },
   head: () => ({
     meta: [
-      { title: "Entrar — Lipapa" },
+      { title: "Entrar — Mums!" },
       {
         name: "description",
         content: "Acesse sua conta para avaliar receitas, salvar favoritas e enviar fotos.",
       },
-      { property: "og:title", content: "Entrar — Lipapa" },
+      { property: "og:title", content: "Entrar — Mums!" },
       {
         property: "og:description",
         content: "Acesse sua conta na plataforma de receitas testadas.",
@@ -63,7 +62,6 @@ function EntrarPage() {
       setErrors({ form: result.error });
       return;
     }
-    toast.success(`Bem-vindo de volta, ${result.user.name.split(" ")[0]}!`);
     if (redirect) navigate({ href: redirect, replace: true });
     else navigate({ to: "/perfil", replace: true });
   };

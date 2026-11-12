@@ -27,13 +27,13 @@ export const Route = createFileRoute("/buscar")({
   }),
   head: () => ({
     meta: [
-      { title: "Buscar receitas testadas — Lipapa" },
+      { title: "Buscar receitas testadas — Mums!" },
       {
         name: "description",
         content:
           "Filtre receitas por categoria, tempo, dificuldade e taxa de sucesso da comunidade.",
       },
-      { property: "og:title", content: "Buscar receitas testadas — Lipapa" },
+      { property: "og:title", content: "Buscar receitas testadas — Mums!" },
       { property: "og:description", content: "Filtros por sucesso real, tempo e dificuldade." },
     ],
   }),
