@@ -55,6 +55,10 @@ public class Receita {
     private Dificuldade dificuldade;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "faixa_custo", length = 20)
+    private FaixaCusto faixaCusto;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Origem origem = Origem.PROPRIA;
 
@@ -63,7 +67,7 @@ public class Receita {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private StatusReceita status = StatusReceita.PENDENTE;
+    private StatusReceita status = StatusReceita.APROVADA;
 
     @Column(name = "data_publicacao", nullable = false, updatable = false)
     private Instant dataPublicacao;
@@ -123,12 +127,6 @@ public class Receita {
         this.dataModeracao = Instant.now();
     }
 
-    /** Uma edição volta a receita para a fila de curadoria. */
-    public void voltarParaCuradoria() {
-        this.status = StatusReceita.PENDENTE;
-        this.dataModeracao = null;
-    }
-
     public Integer getId() {
         return id;
     }
@@ -179,6 +177,14 @@ public class Receita {
 
     public void setDificuldade(Dificuldade dificuldade) {
         this.dificuldade = dificuldade;
+    }
+
+    public FaixaCusto getFaixaCusto() {
+        return faixaCusto;
+    }
+
+    public void setFaixaCusto(FaixaCusto faixaCusto) {
+        this.faixaCusto = faixaCusto;
     }
 
     public Origem getOrigem() {

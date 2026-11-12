@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate, notFound } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Camera, Star } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/feedback";
 import { FieldError } from "@/components/site/PasswordInput";
 import { PhotoPicker } from "@/components/site/PhotoPicker";
 import { RequireAuth } from "@/components/site/RequireAuth";
@@ -27,15 +27,15 @@ export const Route = createFileRoute("/receita/$recipeId_/avaliar")({
     meta: [
       {
         title: loaderData
-          ? `Avaliar ${loaderData.recipe.title} — Lipapa`
-          : "Avaliar receita — Lipapa",
+          ? `Avaliar ${loaderData.recipe.title} — Mums!`
+          : "Avaliar receita — Mums!",
       },
       {
         name: "description",
         content:
           "Avalie medidas, tempo, rendimento, clareza e resultado final e conte se a receita funcionou.",
       },
-      { property: "og:title", content: "Avaliar receita — Lipapa" },
+      { property: "og:title", content: "Avaliar receita — Mums!" },
       {
         property: "og:description",
         content: "Sua avaliação por critérios ajuda outras pessoas a cozinhar com segurança.",

@@ -5,11 +5,15 @@ import {
   Camera,
   ChefHat,
   Clock,
+  CircleDollarSign,
   Flame,
+  LoaderCircle,
   MessageCircle,
+  MoreVertical,
   Pencil,
   ThumbsDown,
   ThumbsUp,
+  Trash2,
   Users,
   Utensils,
 } from "lucide-react";
@@ -22,11 +26,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
 import { api, apiUrl } from "@/lib/api";
-import { toast } from "sonner";
+import { requestText, toast } from "@/lib/feedback";
 import { getRecipe, searchRecipes } from "@/lib/recipes-api";
 import type { Recipe } from "@/lib/mock-data";
 import { RecipePhotoPlaceholder } from "@/components/site/RecipePhotoPlaceholder";
+import { getRecipeIngredientSectionTitle, getRecipeSectionTitle } from "@/lib/recipe-steps";
 import { DeleteRecipeButton } from "@/components/site/DeleteRecipeButton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/receita/$recipeId")({
   loader: async ({ params }) => {
@@ -39,15 +60,15 @@ export const Route = createFileRoute("/receita/$recipeId")({
   head: ({ loaderData }) => {
     if (!loaderData) {
       return {
-        meta: [{ title: "Receita indisponível — Lipapa" }, { name: "robots", content: "noindex" }],
+        meta: [{ title: "Receita indisponível — Mums!" }, { name: "robots", content: "noindex" }],
       };
     }
     const { recipe } = loaderData;
     return {
       meta: [
-        { title: `${recipe.title} — Lipapa` },
+        { title: `${recipe.title} — Mums!` },
         { name: "description", content: recipe.summary },
-        { property: "og:title", content: `${recipe.title} — Lipapa` },
+        { property: "og:title", content: `${recipe.title} — Mums!` },
         { property: "og:description", content: recipe.summary },
       ],
     };
@@ -93,6 +114,8 @@ function RecipePage() {
   >([]);
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
+  const [commentToDelete, setCommentToDelete] = useState<number | null>(null);
+  const [deletingComment, setDeletingComment] = useState(false);
   const loadComments = useCallback(
     () =>
       api<{ itens: typeof comments }>(`/api/receitas/${recipe.id}/comentarios`)
@@ -121,9 +144,13 @@ function RecipePage() {
     }
   };
   const reportComment = async (id: number) => {
-    const motivo = window.prompt(
-      "Por que você está denunciando este comentário? (até 500 caracteres)",
-    );
+    const motivo = await requestText({
+      title: "Denunciar comentário",
+      description: "Conte à moderação por que este comentário deve ser analisado.",
+      placeholder: "Descreva o motivo da denúncia",
+      maxLength: 500,
+      confirmLabel: "Enviar denúncia",
+    });
     if (!motivo?.trim()) return;
     try {
       await api("/api/denuncias", {
@@ -133,6 +160,19 @@ function RecipePage() {
       toast.success("Denúncia enviada para a moderação");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível enviar a denúncia.");
+    }
+  };
+  const deleteComment = async (id: number) => {
+    setDeletingComment(true);
+    try {
+      await api(`/api/comentarios/${id}`, { method: "DELETE" });
+      setCommentToDelete(null);
+      await loadComments();
+      toast.success("Comentário excluído");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível excluir o comentário.");
+    } finally {
+      setDeletingComment(false);
     }
   };
   const [related, setRelated] = useState<Recipe[]>([]);
@@ -158,8 +198,10 @@ function RecipePage() {
     };
   }, [recipe.id, recipe.category, recipe.categorySlug]);
 
+  let stepNumber = 0;
+
   return (
-    <Shell>
+    <Shell assistantRecipe={recipe}>
       <article className="mx-auto max-w-6xl px-5 py-8">
         <Link
           to="/buscar"
@@ -169,24 +211,60 @@ function RecipePage() {
           <ArrowLeft width={14} height={14} /> Voltar para a busca
         </Link>
 
-        <div className="mt-6 grid gap-8 lg:grid-cols-[1.15fr_1fr] lg:items-start">
-          {recipe.hasPhoto === false ? (
-            <RecipePhotoPlaceholder className="aspect-[4/3] w-full rounded-[2rem] shadow-lifted" />
-          ) : (
-            <img
-              src={recipe.image}
-              alt={recipe.title}
-              width={1024}
-              height={768}
-              className="aspect-[4/3] w-full rounded-[2rem] object-cover shadow-lifted"
-            />
-          )}
+        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
+          <div className="relative aspect-[4/3] min-w-0 w-full max-h-[480px] overflow-hidden rounded-[2rem] shadow-lifted">
+            {recipe.hasPhoto === false ? (
+              <RecipePhotoPlaceholder className="absolute inset-0 h-full w-full" />
+            ) : (
+              <img
+                src={recipe.image}
+                alt={recipe.title}
+                width={1024}
+                height={768}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            )}
+          </div>
 
-          <div>
+          <div className="min-w-0">
             {recipe.verified && <VerifiedBadge />}
-            <h1 className="mt-3 text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
-              {recipe.title}
-            </h1>
+            <div className="mt-3 flex items-start justify-between gap-3 lg:mt-2">
+              <h1 className="min-w-0 flex-1 text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
+                {recipe.title}
+              </h1>
+              {(user?.id === recipe.authorId || user?.role === "moderador") && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Opções da receita"
+                      title="Opções da receita"
+                      className="h-9 w-9 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
+                    >
+                      <MoreVertical width={18} height={18} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
+                    {user?.id === recipe.authorId && (
+                      <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
+                        <Link to="/publicar" search={{ editar: recipe.id }}>
+                          <Pencil width={16} height={16} /> Editar receita
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {podeExcluir && (
+                      <DeleteRecipeButton
+                        recipeTitle={recipe.title}
+                        buttonLabel="Excluir receita"
+                        menuItem
+                        onDelete={excluirReceita}
+                      />
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
             <div className="mt-3 flex items-center gap-2.5 lg:mt-2">
               <Avatar className="h-8 w-8 border border-border">
                 <AvatarFallback className="bg-accent text-xs text-accent-foreground">
@@ -213,46 +291,25 @@ function RecipePage() {
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground lg:mt-3">
               {recipe.summary}
             </p>
-            {(user?.id === recipe.authorId || user?.role === "moderador") && (
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                {user?.id === recipe.authorId && (
-                  <Button
-                    asChild
-                    size="icon"
-                    variant="outline"
-                    className="h-10 w-10 rounded-full border-border bg-card text-foreground hover:text-caramel"
-                  >
-                    <Link to="/publicar" search={{ editar: recipe.id }}>
-                      <Pencil width={16} height={16} />
-                      <span className="sr-only">Editar receita</span>
-                    </Link>
-                  </Button>
-                )}
-                {podeExcluir && (
-                  <DeleteRecipeButton
-                    recipeTitle={recipe.title}
-                    buttonLabel="Excluir receita"
-                    iconOnly
-                    onDelete={excluirReceita}
-                  />
-                )}
-              </div>
-            )}
 
             {/* Recipe facts (o que o autor publicou) */}
             <div className="mt-6 rounded-3xl border border-border bg-card p-5 shadow-soft lg:mt-4 lg:p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Informado pelo autor
               </p>
-              <div className="mt-4 grid grid-cols-3 gap-3 text-center lg:mt-3 lg:gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-4 lg:mt-3 lg:gap-2">
                 {[
-                  { icon: Clock, label: "Tempo", value: `${recipe.timeMinutes} min` },
+                  { icon: Clock, label: "Tempo", value: recipe.timeMinutes == null ? "-" : `${recipe.timeMinutes} min` },
                   { icon: Utensils, label: "Rendimento", value: recipe.yield },
                   { icon: Flame, label: "Dificuldade", value: recipe.difficulty },
+                  { icon: CircleDollarSign, label: "Custo", value: recipe.cost ?? "-" },
                 ].map((f) => (
-                  <div key={f.label} className="rounded-2xl bg-secondary/70 px-2 py-3 lg:py-2">
+                  <div
+                    key={f.label}
+                    className="flex flex-col items-center gap-2 rounded-2xl bg-secondary/70 px-2 py-4 text-center"
+                  >
                     <f.icon width={16} height={16} className="mx-auto text-caramel" />
-                    <p className="mt-1.5 text-xs text-muted-foreground">{f.label}</p>
+                    <p className="text-xs text-muted-foreground">{f.label}</p>
                     <p className="text-sm font-semibold leading-tight text-foreground">{f.value}</p>
                   </div>
                 ))}
@@ -264,13 +321,13 @@ function RecipePage() {
               <p className="text-xs font-semibold uppercase tracking-wider text-cocoa">
                 Experiência real da comunidade
               </p>
-              <div className="mt-4 flex flex-wrap items-end gap-6 lg:mt-3 lg:gap-5">
+              <div className="mt-4 grid grid-cols-3 items-end gap-3 lg:mt-3 lg:gap-4">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-1.5">
                     <span className="font-display text-4xl font-semibold text-foreground lg:text-3xl">
                       {recipe.rating.toFixed(1)}
                     </span>
-                    <Stars value={recipe.rating} size={16} />
+                    <Stars value={recipe.rating} size={12} />
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {recipe.reviewsCount.toLocaleString("pt-BR")} avaliações
@@ -327,13 +384,22 @@ function RecipePage() {
               <h2 className="text-2xl font-semibold text-foreground">Ingredientes</h2>
               <ul className="mt-5 divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
                 {recipe.ingredients.map((i, idx) => (
-                  <li
-                    key={`${recipe.id}-ingrediente-${idx}`}
-                    className="flex items-start gap-3 px-5 py-3.5 text-sm text-foreground"
-                  >
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-caramel" />
-                    {i}
-                  </li>
+                  getRecipeIngredientSectionTitle(i) ? (
+                    <li
+                      key={`${recipe.id}-ingrediente-secao-${idx}`}
+                      className="bg-warm px-5 py-3.5 text-sm font-semibold text-foreground"
+                    >
+                      {getRecipeIngredientSectionTitle(i)}
+                    </li>
+                  ) : (
+                    <li
+                      key={`${recipe.id}-ingrediente-${idx}`}
+                      className="flex items-start gap-3 px-5 py-3.5 text-sm text-foreground"
+                    >
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-caramel" />
+                      {i}
+                    </li>
+                  )
                 ))}
               </ul>
             </section>
@@ -341,17 +407,33 @@ function RecipePage() {
             <section className="mt-12">
               <h2 className="text-2xl font-semibold text-foreground">Modo de preparo</h2>
               <ol className="mt-5 space-y-4">
-                {recipe.steps.map((s, idx) => (
-                  <li
-                    key={`${recipe.id}-passo-${idx}`}
-                    className="flex gap-4 rounded-3xl border border-border bg-card p-5 shadow-soft"
-                  >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-foreground">
-                      {idx + 1}
-                    </span>
-                    <p className="pt-1 text-sm leading-relaxed text-foreground">{s}</p>
-                  </li>
-                ))}
+                {recipe.steps.map((s, idx) => {
+                  const sectionTitle = getRecipeSectionTitle(s);
+                  if (sectionTitle) {
+                    return (
+                      <li
+                        key={`${recipe.id}-secao-${idx}`}
+                        className="rounded-2xl border border-caramel/20 bg-warm px-5 py-3"
+                      >
+                        <h3 className="font-semibold text-foreground">{sectionTitle}</h3>
+                      </li>
+                    );
+                  }
+                  stepNumber += 1;
+                  return (
+                    <li
+                      key={`${recipe.id}-passo-${idx}`}
+                      className="flex min-w-0 gap-4 rounded-3xl border border-border bg-card p-5 shadow-soft"
+                    >
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-foreground">
+                        {stepNumber}
+                      </span>
+                      <p className="min-w-0 flex-1 pt-1 text-sm leading-relaxed text-foreground [overflow-wrap:anywhere]">
+                        {s}
+                      </p>
+                    </li>
+                  );
+                })}
               </ol>
             </section>
 
@@ -417,13 +499,23 @@ function RecipePage() {
                           </span>
                         </div>
                         <p className="mt-2 text-sm leading-relaxed text-foreground">{rev.texto}</p>
-                        {user && (
+                        {user && user.id !== String(rev.autor?.id) && (
                           <button
                             type="button"
                             className="mt-2 text-xs text-muted-foreground underline hover:text-foreground"
                             onClick={() => void reportComment(rev.id)}
                           >
                             Denunciar comentário
+                          </button>
+                        )}
+                        {user?.id === String(rev.autor?.id) && (
+                          <button
+                            type="button"
+                            className="mt-2 inline-flex items-center gap-1 text-xs text-destructive underline hover:text-destructive/80"
+                            onClick={() => setCommentToDelete(rev.id)}
+                          >
+                            <Trash2 size={13} aria-hidden="true" />
+                            Excluir meu comentário
                           </button>
                         )}
                         {rev.fotoResultado && (
@@ -464,6 +556,40 @@ function RecipePage() {
                 )}
               </div>
             </section>
+            <AlertDialog
+              open={commentToDelete !== null}
+              onOpenChange={(open) => !deletingComment && !open && setCommentToDelete(null)}
+            >
+              <AlertDialogContent className="max-w-md rounded-[1.75rem] border-border bg-card p-6 shadow-soft sm:p-7">
+                <AlertDialogHeader className="items-center text-center sm:items-start sm:text-left">
+                  <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-warm text-caramel">
+                    <Trash2 width={21} height={21} />
+                  </div>
+                  <AlertDialogTitle className="font-display text-2xl text-foreground">
+                    Excluir seu comentário?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="pt-1 text-sm leading-relaxed">
+                    Essa ação não pode ser desfeita.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter className="mt-6 gap-2 sm:gap-2">
+                  <AlertDialogCancel disabled={deletingComment} className="h-10 rounded-full px-5">
+                    Manter comentário
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={deletingComment}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      if (commentToDelete !== null) void deleteComment(commentToDelete);
+                    }}
+                    className="h-10 rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary/90"
+                  >
+                    {deletingComment ? <LoaderCircle className="animate-spin" /> : <Trash2 width={15} height={15} />}
+                    {deletingComment ? "Excluindo…" : "Sim, excluir"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
 
           {/* Sidebar */}

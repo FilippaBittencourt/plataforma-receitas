@@ -28,7 +28,8 @@ export type Recipe = {
   hasPhoto?: boolean;
   category: string;
   categorySlug?: string;
-  difficulty: "Fácil" | "Médio" | "Avançado";
+  difficulty: "Fácil" | "Médio" | "Difícil" | "Chef" | "-";
+  cost?: "Baixo" | "Médio" | "Alto" | "Muito alto" | "-" | null;
   rating: number;
   reviewsCount: number;
   successRate: number;
@@ -89,6 +90,19 @@ export const demoAccounts: Account[] = [
     since: "Membro desde 2024",
     role: "membro",
     stats: { publicadas: 12, avaliacoes: 87, testadas: 64, seguidores: 1240 },
+    publishedIds: [],
+    testedIds: [],
+    notifications: { avaliacoes: true, comentarios: true, novidades: false },
+  },
+  {
+    id: "u-marina",
+    name: "Marina Duarte",
+    handle: "@marinaduarte",
+    email: "marina@cookie.com",
+    bio: "Confeiteira caseira. Peso tudo, até o sal.",
+    since: "Conta de demonstração",
+    role: "membro",
+    stats: { publicadas: 4, avaliacoes: 0, testadas: 0, seguidores: 0 },
     publishedIds: [],
     testedIds: [],
     notifications: { avaliacoes: true, comentarios: true, novidades: false },

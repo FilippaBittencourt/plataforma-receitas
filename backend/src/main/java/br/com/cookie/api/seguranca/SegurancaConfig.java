@@ -45,7 +45,7 @@ public class SegurancaConfig {
                                 "/api/auth/redefinir-senha").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/receitas/*/avaliacao").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/categorias/**", "/api/receitas/**", "/api/usuarios/**",
-                                "/uploads/**").permitAll()
+                                "/uploads/**", "/demo/**").permitAll()
                         .requestMatchers("/api/moderacao/**").hasRole("ADMINISTRADOR")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o.jwt(jwt -> jwt.jwtAuthenticationConverter(conversorDePapeis())));

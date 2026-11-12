@@ -85,14 +85,21 @@ public class DadosDemonstracao implements ApplicationRunner {
     }
 
     private void criarSeAusente(Receita receita) {
-        if (receitas.findAll().stream().noneMatch(r -> r.getTitulo().equalsIgnoreCase(receita.getTitulo()))) {
-            receita.moderar(StatusReceita.APROVADA);
-            receitas.save(receita);
+        var existente = receitas.findAll().stream()
+                .filter(r -> r.getTitulo().equalsIgnoreCase(receita.getTitulo()))
+                .findFirst();
+        if (existente.isPresent()) {
+            if (existente.get().getFotoPrincipal() == null || existente.get().getFotoPrincipal().isBlank()) {
+                existente.get().setFotoPrincipal(receita.getFotoPrincipal());
+            }
+            return;
         }
+        receita.moderar(StatusReceita.APROVADA);
+        receitas.save(receita);
     }
 
     private Receita receitaKanelbulle(Usuario autora) {
-        return receita(autora, "Kanelbulle (pãezinhos suecos de canela)", "doces", 180, "12 unidades",
+        return receita(autora, "Kanelbulle", "doces", "/demo/kanelbulle.jpg", 180, "12 unidades",
                 Dificuldade.MEDIO, "Pãezinhos macios de massa enriquecida com cardamomo, recheados com manteiga, açúcar e canela. Rende 12 unidades.",
                 List.of(
                         item("farinha de trigo", "500", "g", null), item("leite integral", "250", "ml", "morno"),
@@ -112,7 +119,7 @@ public class DadosDemonstracao implements ApplicationRunner {
     }
 
     private Receita receitaCroissant(Usuario autora) {
-        return receita(autora, "Croissant clássico", "paes", 1440, "12 unidades",
+        return receita(autora, "Croissant", "paes", "/demo/croissant.jpg", 1440, "12 unidades",
                 Dificuldade.AVANCADO, "Massa levedada e folhada com manteiga laminada. O preparo inclui descanso refrigerado durante a noite para facilitar a laminação.",
                 List.of(item("farinha de trigo", "500", "g", null), item("leite integral", "140", "ml", "gelado"),
                         item("água", "140", "ml", "gelada"), item("fermento biológico fresco", "15", "g", null),
@@ -131,7 +138,7 @@ public class DadosDemonstracao implements ApplicationRunner {
     }
 
     private Receita receitaCarbonara(Usuario autora) {
-        return receita(autora, "Espaguete à carbonara tradicional", "massas", 30, "4 porções",
+        return receita(autora, "Carbonara", "massas", "/demo/carbonara.jpg", 30, "4 porções",
                 Dificuldade.MEDIO, "Carbonara romana com guanciale, gemas, Pecorino Romano e pimenta-do-reino. O molho fica cremoso com a água do cozimento, sem creme de leite.",
                 List.of(item("espaguete", "400", "g", null), item("guanciale", "150", "g", "em tiras ou cubos"),
                         item("gema de ovo", "4", "unidades", "em temperatura ambiente"),
@@ -148,7 +155,7 @@ public class DadosDemonstracao implements ApplicationRunner {
     }
 
     private Receita receitaMoscowMule(Usuario autora) {
-        return receita(autora, "Moscow Mule clássico", "bebidas", 5, "1 drink",
+        return receita(autora, "Moscow Mule", "bebidas", "/demo/moscow-mule.jpg", 5, "1 drink",
                 Dificuldade.FACIL, "Coquetel refrescante de vodka, limão e ginger beer, servido bem gelado. A caneca de cobre é tradicional, mas não obrigatória.",
                 List.of(item("vodka", "45", "ml", null), item("suco de limão-taiti", "10", "ml", "espremido na hora"),
                         item("ginger beer", "120", "ml", "bem gelada"), item("gelo", "150", "g", "ou o suficiente para encher a caneca"),
@@ -172,10 +179,11 @@ public class DadosDemonstracao implements ApplicationRunner {
         return new Item(nome, quantidade, unidade, observacao);
     }
 
-    private Receita receita(Usuario autor, String titulo, String categoria, int minutos, String rendimento,
+    private Receita receita(Usuario autor, String titulo, String categoria, String foto, int minutos, String rendimento,
             Dificuldade dificuldade, String resumo, List<Item> itens, List<String> passos) {
         var receita = new Receita(Origem.PROPRIA, autor);
         receita.setTitulo(titulo);
+        receita.setFotoPrincipal(foto);
         receita.setCategoria(categorias.findBySlug(categoria).orElseThrow());
         receita.setTempoPreparo(minutos);
         receita.setRendimento(rendimento);

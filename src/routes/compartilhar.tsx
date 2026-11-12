@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Link2, ShieldCheck, Sparkles } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/feedback";
 import { FieldError } from "@/components/site/PasswordInput";
 import { RequireAuth } from "@/components/site/RequireAuth";
 import { Shell } from "@/components/site/Shell";
@@ -22,13 +22,13 @@ import { api } from "@/lib/api";
 export const Route = createFileRoute("/compartilhar")({
   head: () => ({
     meta: [
-      { title: "Indicar receita externa por link — Lipapa" },
+      { title: "Indicar receita externa por link — Mums!" },
       {
         name: "description",
         content:
           "Compartilhe o link de uma receita de fora da plataforma e deixe a comunidade testar e avaliar.",
       },
-      { property: "og:title", content: "Indicar receita externa por link — Lipapa" },
+      { property: "og:title", content: "Indicar receita externa por link — Mums!" },
       {
         property: "og:description",
         content: "Traga receitas de blogs e vídeos para serem testadas pela comunidade.",
@@ -69,7 +69,7 @@ function CompartilharForm() {
     e.preventDefault();
     const next: typeof errors = {};
     if (!parsed) next.url = "Cole um link completo, começando com https://";
-    if (nome.trim().length < 3) next.nome = "Informe o nome da receita.";
+    if (nome.trim().length < 3) next.nome = "Informe o título da receita.";
     if (!categoria) next.categoria = "Escolha uma categoria.";
     setErrors(next);
     if (next.url || next.nome || next.categoria) return;
@@ -143,7 +143,7 @@ function CompartilharForm() {
         <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="nome">Nome da receita</Label>
+              <Label htmlFor="nome">Título da receita</Label>
               <Input
                 id="nome"
                 value={nome}

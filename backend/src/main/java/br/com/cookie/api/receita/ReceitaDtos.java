@@ -39,6 +39,7 @@ public final class ReceitaDtos {
             @NotNull(message = "Informe o tempo em minutos.") @Positive(message = "Informe o tempo em minutos.") @Max(value = 10080, message = "O tempo máximo é de 7 dias.") Integer tempoPreparo,
             @Size(max = 100) String rendimento,
             Dificuldade dificuldade,
+            FaixaCusto faixaCusto,
             @Size(max = 500) String fotoPrincipal,
             @NotNull(message = "Liste pelo menos 2 ingredientes.") @Size(min = 2, max = 100, message = "Liste de 2 a 100 ingredientes.") List<@Valid @NotNull IngredienteRequest> ingredientes,
             @NotNull(message = "Descreva pelo menos 1 passo.") @Size(min = 1, max = 100, message = "Descreva de 1 a 100 passos.") List<@NotBlank(message = "O passo não pode ficar vazio.") @Size(max = 2000) String> passos) {
@@ -47,7 +48,7 @@ public final class ReceitaDtos {
     /** Receita de outro site, indicada por link. */
     public record IndicacaoRequest(
             @NotBlank(message = "Cole o link da receita.") @Size(max = 1000) @Pattern(regexp = "^https?://\\S+$", message = "Cole um link completo, começando com https://") String urlFonte,
-            @NotBlank(message = "Informe o nome da receita.") @Size(min = 3, max = 200, message = "Use de 3 a 200 caracteres.") String titulo,
+            @NotBlank(message = "Informe o título da receita.") @Size(min = 3, max = 200, message = "Use de 3 a 200 caracteres.") String titulo,
             @NotBlank(message = "Escolha uma categoria.") String categoria,
             @Size(max = 2000) String motivo) {
     }
@@ -94,19 +95,19 @@ public final class ReceitaDtos {
     }
 
     public record ReceitaResumo(Integer id, String titulo, String resumo, String fotoPrincipal, Integer tempoPreparo,
-            String rendimento, Dificuldade dificuldade, Origem origem, String urlFonte, CategoriaResumo categoria,
+            String rendimento, Dificuldade dificuldade, FaixaCusto faixaCusto, Origem origem, String urlFonte, CategoriaResumo categoria,
             AutorResponse autor, Instant dataPublicacao, EstatisticasResumo estatisticas) {
 
         public static ReceitaResumo de(Receita r) {
             return new ReceitaResumo(r.getId(), r.getTitulo(), r.getResumo(), r.getFotoPrincipal(),
-                    r.getTempoPreparo(), r.getRendimento(), r.getDificuldade(), r.getOrigem(), r.getUrlFonte(),
+                    r.getTempoPreparo(), r.getRendimento(), r.getDificuldade(), r.getFaixaCusto(), r.getOrigem(), r.getUrlFonte(),
                     CategoriaResumo.de(r.getCategoria()), AutorResponse.de(r.getAutor()), r.getDataPublicacao(),
                     EstatisticasResumo.de(r.getEstatistica()));
         }
     }
 
     public record ReceitaDetalhe(Integer id, String titulo, String resumo, String fotoPrincipal, Integer tempoPreparo,
-            String rendimento, Dificuldade dificuldade, Origem origem, String urlFonte, StatusReceita status,
+            String rendimento, Dificuldade dificuldade, FaixaCusto faixaCusto, Origem origem, String urlFonte, StatusReceita status,
             CategoriaResumo categoria, AutorResponse autor, Instant dataPublicacao,
             List<IngredienteResponse> ingredientes, List<String> passos, EstatisticasDetalhe estatisticas) {
 
@@ -119,14 +120,14 @@ public final class ReceitaDtos {
                         item.getUnidadeMedida(), item.getObservacao()));
             }
             return new ReceitaDetalhe(r.getId(), r.getTitulo(), r.getResumo(), r.getFotoPrincipal(),
-                    r.getTempoPreparo(), r.getRendimento(), r.getDificuldade(), r.getOrigem(), r.getUrlFonte(),
+                    r.getTempoPreparo(), r.getRendimento(), r.getDificuldade(), r.getFaixaCusto(), r.getOrigem(), r.getUrlFonte(),
                     r.getStatus(), CategoriaResumo.de(r.getCategoria()), AutorResponse.de(r.getAutor()),
                     r.getDataPublicacao(), ingredientes, List.copyOf(r.getPassos()),
                     EstatisticasDetalhe.de(r.getEstatistica()));
         }
     }
 
-    /** Receita na lista "minhas receitas", com a situação na curadoria. */
+    /** Receita na lista "minhas receitas", com o status atual de publicação. */
     public record MinhaReceita(Integer id, String titulo, Origem origem, StatusReceita status,
             String fotoPrincipal, CategoriaResumo categoria, Instant dataPublicacao, Instant dataModeracao,
             EstatisticasResumo estatisticas) {

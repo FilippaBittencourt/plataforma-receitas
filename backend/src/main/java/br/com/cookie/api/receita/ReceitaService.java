@@ -71,6 +71,7 @@ public class ReceitaService {
     public ReceitaDetalhe criar(Jwt jwt, ReceitaRequest req) {
         var receita = new Receita(Origem.PROPRIA, usuarios.ativo(jwt));
         preencher(receita, req);
+        receita.moderar(StatusReceita.APROVADA);
         return ReceitaDetalhe.de(receitas.save(receita));
     }
 
@@ -85,7 +86,7 @@ public class ReceitaService {
         return ReceitaDetalhe.de(receitas.save(receita));
     }
 
-    /** Só o autor edita, e a receita editada volta para a curadoria. */
+    /** Só o autor edita; a versão atualizada é publicada imediatamente. */
     @Transactional
     public ReceitaDetalhe atualizar(Jwt jwt, Integer id, ReceitaRequest req) {
         Usuario usuario = usuarios.ativo(jwt);
@@ -97,7 +98,7 @@ public class ReceitaService {
             throw ApiException.invalido("Receitas indicadas por link não podem ser editadas; envie uma nova indicação.");
         }
         preencher(receita, req);
-        receita.voltarParaCuradoria();
+        receita.moderar(StatusReceita.APROVADA);
         return ReceitaDetalhe.de(receitas.save(receita));
     }
 
@@ -130,6 +131,7 @@ public class ReceitaService {
         receita.setTempoPreparo(req.tempoPreparo());
         receita.setRendimento(vazioParaNulo(req.rendimento()));
         receita.setDificuldade(req.dificuldade());
+        receita.setFaixaCusto(req.faixaCusto());
         receita.setFotoPrincipal(vazioParaNulo(req.fotoPrincipal()));
 
         receita.getIngredientes().clear();

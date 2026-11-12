@@ -1,6 +1,7 @@
 import { api, apiUrl } from "@/lib/api";
 import type { Criteria, Recipe } from "@/lib/mock-data";
 import placeholder from "@/assets/recipe-1.jpg";
+import { encodeIngredientSection, getRecipeIngredientSectionTitle } from "@/lib/recipe-steps";
 
 export type RecipeDto = {
   id: number;
@@ -10,6 +11,7 @@ export type RecipeDto = {
   tempoPreparo: number;
   rendimento: string | null;
   dificuldade: string | null;
+  faixaCusto: string | null;
   origem: string;
   urlFonte: string | null;
   categoria: { nome: string; slug: string };
@@ -21,7 +23,7 @@ export type RecipeDto = {
     verificada: boolean;
     criterios?: Partial<Criteria>;
   };
-  ingredientes?: { ingrediente: string; quantidade: number | null; unidadeMedida: string | null }[];
+  ingredientes?: { ingrediente: string; quantidade: number | null; unidadeMedida: string | null; observacao?: string | null }[];
   passos?: string[];
 };
 
@@ -46,18 +48,41 @@ export function toRecipe(r: RecipeDto): Recipe {
     category: r.categoria.nome,
     categorySlug: r.categoria.slug,
     difficulty:
-      r.dificuldade === "AVANCADO" ? "Avançado" : r.dificuldade === "MEDIO" ? "Médio" : "Fácil",
+      r.dificuldade === "CHEF"
+        ? "Chef"
+        : r.dificuldade === "DIFICIL" || r.dificuldade === "AVANCADO"
+          ? "Difícil"
+          : r.dificuldade === "MEDIO"
+            ? "Médio"
+            : r.dificuldade === "FACIL"
+              ? "Fácil"
+              : "-",
+    cost:
+      r.faixaCusto === "MUITO_ALTO"
+        ? "Muito alto"
+        : r.faixaCusto === "BAIXO"
+          ? "Baixo"
+          : r.faixaCusto === "MEDIO"
+            ? "Médio"
+            : r.faixaCusto === "ALTO"
+              ? "Alto"
+              : "-",
     rating: r.estatisticas.mediaGeral ?? 0,
     reviewsCount: r.estatisticas.totalAvaliacoes,
     successRate: r.estatisticas.taxaSucesso ?? 0,
     testedCount: r.estatisticas.totalAvaliacoes,
     verified: r.estatisticas.verificada,
     timeMinutes: r.tempoPreparo,
-    yield: r.rendimento ?? "",
+    yield: r.rendimento?.trim() || "-",
     summary: r.resumo ?? "",
-    ingredients: (r.ingredientes ?? []).map((i) =>
-      [i.quantidade, i.unidadeMedida, i.ingrediente].filter(Boolean).join(" "),
-    ),
+    ingredients: (r.ingredientes ?? []).flatMap((i, index, list) => {
+      const title = getRecipeIngredientSectionTitle(i.observacao);
+      const previousTitle = index > 0 ? getRecipeIngredientSectionTitle(list[index - 1]?.observacao) : null;
+      return [
+        ...(title && title !== previousTitle ? [encodeIngredientSection(title)] : []),
+        [i.quantidade, i.unidadeMedida, i.ingrediente].filter(Boolean).join(" "),
+      ];
+    }),
     steps: r.passos ?? [],
     criteria,
     communityPhotos: [],
