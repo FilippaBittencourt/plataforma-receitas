@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Camera, Star } from "lucide-react";
 import { toast } from "@/lib/feedback";
 import { FieldError } from "@/components/site/PasswordInput";
@@ -7,13 +7,13 @@ import { PhotoPicker } from "@/components/site/PhotoPicker";
 import { RequireAuth } from "@/components/site/RequireAuth";
 import { Shell } from "@/components/site/Shell";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { criteriaLabels, type Criteria, type Recipe } from "@/lib/mock-data";
 import { getRecipe } from "@/lib/recipes-api";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
 
 export const Route = createFileRoute("/receita/$recipeId_/avaliar")({
   loader: async ({ params }) => {
@@ -27,15 +27,15 @@ export const Route = createFileRoute("/receita/$recipeId_/avaliar")({
     meta: [
       {
         title: loaderData
-          ? `Avaliar ${loaderData.recipe.title} — Mums!`
-          : "Avaliar receita — Mums!",
+          ? `Registrar avaliação: ${loaderData.recipe.title} — Mums!`
+          : "Registrar avaliação — Mums!",
       },
       {
         name: "description",
         content:
-          "Avalie medidas, tempo, rendimento, clareza e resultado final e conte se a receita funcionou.",
+          "Registre o resultado de uma tentativa e avalie medidas, tempo, rendimento, clareza e resultado final.",
       },
-      { property: "og:title", content: "Avaliar receita — Mums!" },
+      { property: "og:title", content: "Registrar avaliação — Mums!" },
       {
         property: "og:description",
         content: "Sua avaliação por critérios ajuda outras pessoas a cozinhar com segurança.",
@@ -109,10 +109,19 @@ function AvaliarForm({ recipe }: { recipe: Recipe }) {
   const [success, setSuccess] = useState<boolean | null>(null);
   const [comment, setComment] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [previousTestDate, setPreviousTestDate] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ success?: string; criteria?: string }>({});
 
   const filled = Object.values(scores).filter(Boolean).length;
   const average = filled > 0 ? Object.values(scores).reduce((a, b) => a + b, 0) / filled : 0;
+
+  useEffect(() => {
+    api<{ dataAvaliacao: string }>(`/api/receitas/${recipe.id}/avaliacao`)
+      .then((evaluation) => setPreviousTestDate(evaluation.dataAvaliacao))
+      .catch(() => setPreviousTestDate(null));
+  }, [recipe.id]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,10 +129,11 @@ function AvaliarForm({ recipe }: { recipe: Recipe }) {
     if (success === null) next.success = "Conte se a receita deu certo.";
     if (filled < criteriaLabels.length) next.criteria = "Dê uma nota para todos os critérios.";
     setErrors(next);
-    if (next.success || next.criteria) return;
+    if (next.success || next.criteria || photoUploading || submitting) return;
+    setSubmitting(true);
     try {
       await api(`/api/receitas/${recipe.id}/avaliacao`, {
-        method: "PUT",
+        method: "POST",
         body: JSON.stringify({
           funcionou: success,
           notas: {
@@ -133,14 +143,15 @@ function AvaliarForm({ recipe }: { recipe: Recipe }) {
             clareza: scores.clareza,
             resultado: scores.resultado,
           },
-          comentario: comment || null,
+          comentario: comment.trim() || null,
           fotoResultado: photo,
         }),
       });
-      toast.success("Avaliação enviada!");
+      toast.success("Avaliação registrada!");
       navigate({ to: "/receita/$recipeId", params: { recipeId: recipe.id } });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Não foi possível enviar a avaliação.");
+      toast.error(error instanceof Error ? error.message : "Não foi possível registrar o teste.");
+      setSubmitting(false);
     }
   };
 
@@ -164,13 +175,21 @@ function AvaliarForm({ recipe }: { recipe: Recipe }) {
           className="h-16 w-16 rounded-2xl object-cover"
         />
         <div>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Avaliando</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            Registrando teste
+          </p>
           <h1 className="text-xl font-semibold text-foreground">{recipe.title}</h1>
           <p className="text-sm text-muted-foreground">por {recipe.author}</p>
         </div>
       </div>
 
       <form className="mt-8 space-y-6" noValidate onSubmit={submit}>
+        {previousTestDate && (
+          <p className="rounded-2xl border border-caramel/25 bg-warm px-4 py-3 text-sm text-foreground">
+            Você já testou esta receita em {new Date(previousTestDate).toLocaleDateString("pt-BR")}.
+            Este envio será registrado como uma nova tentativa.
+          </p>
+        )}
         <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
           <h2 className="text-lg font-semibold text-foreground">A receita funcionou para você?</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -227,28 +246,28 @@ function AvaliarForm({ recipe }: { recipe: Recipe }) {
         </section>
 
         <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
-          <Label htmlFor="comentario" className="text-lg font-semibold text-foreground">
-            Comentário
+          <Label htmlFor="comentario-teste" className="text-lg font-semibold text-foreground">
+            Comentário sobre esta tentativa
           </Label>
           <p className="mt-1 text-sm text-muted-foreground">
-            Conte ajustes que fez, tempo real de forno, rendimento obtido.
+            Conte ajustes que fez, tempo real de preparo ou o resultado que obteve.
           </p>
           <Textarea
-            id="comentario"
+            id="comentario-teste"
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            rows={5}
-            placeholder="Ex.: assei por 13 minutos em forno a gás e rendeu 16 unidades..."
+            onChange={(event) => setComment(event.target.value)}
+            maxLength={2000}
+            rows={4}
+            placeholder="Conte como foi preparar a receita desta vez"
             className="mt-4 rounded-2xl bg-background"
           />
-
           <PhotoPicker
-            id="foto"
-            className="mt-5 scroll-mt-24"
+            className="mt-5"
             icon={<Camera width={20} height={20} className="text-caramel" />}
-            title="Envie a foto do seu resultado (opcional)"
-            hint="PNG ou JPG até 5 MB"
+            title="Envie uma foto do seu resultado (opcional)"
+            hint="PNG, JPG ou WEBP · até 5 MB"
             onUploaded={setPhoto}
+            onUploadingChange={setPhotoUploading}
           />
         </section>
 
@@ -258,8 +277,18 @@ function AvaliarForm({ recipe }: { recipe: Recipe }) {
               Cancelar
             </Link>
           </Button>
-          <Button type="submit" className="rounded-full px-7">
-            Enviar avaliação
+          <Button
+            type="submit"
+            className="rounded-full px-7"
+            disabled={photoUploading || submitting}
+          >
+            {photoUploading
+              ? "Enviando foto…"
+              : submitting
+                ? "Salvando…"
+                : previousTestDate
+                  ? "Registrar outra avaliação"
+                  : "Registrar avaliação"}
           </Button>
         </div>
       </form>

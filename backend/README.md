@@ -1,6 +1,6 @@
-# Cookie: API
+# API do Mums!
 
-Backend da plataforma de receitas, em **Spring Boot 4.1 (Java 21)** com **PostgreSQL 16**.
+Backend do Mums!, feito com **Java 21**, **Spring Boot 4.1** e **PostgreSQL 16**.
 
 ## Como rodar
 
@@ -41,17 +41,17 @@ Para abrir o banco num cliente (DBeaver, pgAdmin): host `localhost`, porta `5433
 ./mvnw test
 ```
 
-Os testes sobem um PostgreSQL descartável com Testcontainers (é preciso ter o Docker aberto) e passam pelos fluxos completos: cadastro, curadoria, avaliação, selo de verificada, moderação, exclusão de conta e upload.
+Os testes usam um PostgreSQL descartável com Testcontainers. Deixe o Docker aberto para executá-los. Eles cobrem cadastro, publicação, curadoria, avaliações, comentários, uploads e exclusão de conta.
 
 ## Banco de dados
 
-O script fica em [`V1__estrutura_inicial.sql`](src/main/resources/db/migration/V1__estrutura_inicial.sql). Ele é a versão revisada do script original, e cada mudança está marcada com `MUDANÇA:` e o motivo.
+As mudanças no banco ficam nas [migrations do Flyway](src/main/resources/db/migration). A estrutura inicial está em [`V1__estrutura_inicial.sql`](src/main/resources/db/migration/V1__estrutura_inicial.sql).
 
 Tabelas: `categoria`, `usuario`, `receita`, `ingrediente`, `utiliza`, `passo_preparo`, `avalia`, `comenta` e `denuncia`, mais a view `receita_estatistica`, que calcula as médias, a taxa de sucesso e o selo.
 
-**Receita Verificada:** pelo menos 10 avaliações, média geral ≥ 4,0 e ≥ 80% das pessoas dizendo que a receita funcionou.
+**Receita Verificada:** avaliações de pelo menos 10 pessoas diferentes, média geral ≥ 4,0 e sucesso em pelo menos 80% das avaliações.
 
-Nunca edite uma migration que já rodou. Para mudar o banco, crie um arquivo novo com a próxima versão disponível (atualmente `V9__descricao.sql`).
+Nunca edite uma migration que já rodou. Para mudar o banco, crie um arquivo novo com a próxima versão disponível.
 
 ## Autenticação
 
@@ -116,15 +116,16 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 | 🔓 | `GET /api/receitas` | Busca. Parâmetros: `q`, `categoria`, `ingrediente`, `origem`, `verificadas`, `ordem` (`recentes`, `melhores`, `mais-testadas`), `pagina`, `tamanho`. |
 | 🔓 | `GET /api/receitas/ranking` | Ranking (`categoria`, `limite`). |
 | 🔓 | `GET /api/receitas/{id}` | Detalhe com ingredientes, passos e médias por critério. |
-| 🔑 | `POST /api/receitas` | Publica uma receita. Ela entra como `PENDENTE` até a curadoria aprovar. |
-| 🔑 | `POST /api/receitas/indicacoes` | Indica uma receita externa por link. |
-| 🔑 | `PUT /api/receitas/{id}` | Edita (só o autor). A receita volta para a curadoria. |
+| 🔑 | `POST /api/receitas` | Publica uma receita própria imediatamente. |
+| 🔑 | `POST /api/receitas/indicacoes` | Envia uma receita externa com link para a curadoria. |
+| 🔑 | `PUT /api/receitas/{id}` | Edita uma receita própria; a versão atualizada é publicada imediatamente. |
 | 🔑 | `DELETE /api/receitas/{id}` | Exclui (autor ou moderação). |
 | 🔑 | `POST /api/assistente/receitas` | Pergunta ao assistente culinário; aceita contexto da receita aberta e histórico curto da conversa. |
-| 🔑 | `PUT /api/receitas/{id}/avaliacao` | Avalia ou reavalia: uma avaliação por pessoa. Aceita `comentario` e `fotoResultado` opcionais. |
-| 🔑 | `GET /api/receitas/{id}/avaliacao` | Minha avaliação desta receita. |
-| 🔑 | `DELETE /api/receitas/{id}/avaliacao` | Remove minha avaliação. |
+| 🔑 | `POST /api/receitas/{id}/avaliacao` | Registra uma avaliação; cada envio é uma nova experiência. Aceita `comentario` e `fotoResultado` opcionais. |
+| 🔑 | `GET /api/receitas/{id}/avaliacao` | Minha avaliação mais recente desta receita. |
+| 🔓 | `GET /api/receitas/{id}/avaliacoes` | Lista as avaliações registradas para a receita. |
 | 🔓 | `GET /api/receitas/{id}/comentarios` | Comentários visíveis, do mais novo ao mais antigo. |
+| 🔓 | `GET /api/receitas/{id}/fotos` | Fotos dos comentários e avaliações, paginadas do mais novo ao mais antigo. |
 | 🔑 | `POST /api/receitas/{id}/comentarios` | Comenta (com foto opcional). |
 | 🔑 | `DELETE /api/comentarios/{id}` | Exclui (autor ou moderação). |
 | 🔑 | `POST /api/uploads` | Envia uma foto (`multipart`, campo `arquivo`, PNG/JPG/WEBP até 5 MB). Devolve a `url`. |

@@ -5,29 +5,30 @@ import java.time.Instant;
 import br.com.cookie.api.receita.Receita;
 import br.com.cookie.api.usuario.Usuario;
 import jakarta.persistence.Column;
-import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.MapsId;
 import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "avalia")
 public class Avaliacao {
 
-    @EmbeddedId
-    private AvaliacaoId id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_avaliacao")
+    private Long id;
 
-    @MapsId("idReceita")
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_receita")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_receita", nullable = false)
     private Receita receita;
 
-    @MapsId("idUsuario")
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_usuario")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "id_usuario", nullable = false)
     private Usuario usuario;
 
     @Column(nullable = false)
@@ -55,7 +56,6 @@ public class Avaliacao {
     }
 
     public Avaliacao(Receita receita, Usuario usuario) {
-        this.id = new AvaliacaoId(receita.getId(), usuario.getId());
         this.receita = receita;
         this.usuario = usuario;
     }
@@ -75,7 +75,7 @@ public class Avaliacao {
         return (notaMedidas + notaTempo + notaRendimento + notaClareza + notaResultado) / 5.0;
     }
 
-    public AvaliacaoId getId() {
+    public Long getId() {
         return id;
     }
 

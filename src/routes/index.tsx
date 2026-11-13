@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/lib/mock-data";
 import { api } from "@/lib/api";
 import { searchRecipes, searchRecipesPage } from "@/lib/recipes-api";
-import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,16 +31,12 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const navigate = useNavigate();
-  const { user, ready } = useAuth();
   const [q, setQ] = useState("");
   const [featured, setFeatured] = useState<Recipe[]>([]);
   const [verified, setVerified] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<{ id: string; label: string; count: number }[]>([]);
   const [totals, setTotals] = useState({ recipes: 0, verified: 0 });
   const [error, setError] = useState("");
-  const reviewableRecipe = ready
-    ? featured.find((recipe) => recipe.authorId !== user?.id)
-    : undefined;
   useEffect(() => {
     Promise.all([
       searchRecipes({ ordem: "mais-testadas", tamanho: 6 }),
@@ -138,7 +133,8 @@ function Home() {
                 <p className="text-xs text-muted-foreground">Mais testada pela comunidade</p>
                 <p className="mt-1 text-sm font-semibold text-foreground">{featured[0].title}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {featured[0].testedCount.toLocaleString("pt-BR")} avaliações ·{" "}
+                  {featured[0].reviewsCount.toLocaleString("pt-BR")} avaliações ·{" "}
+                  {featured[0].testedCount.toLocaleString("pt-BR")} pessoas ·{" "}
                   {featured[0].successRate}% de sucesso
                 </p>
               </Link>
@@ -259,20 +255,12 @@ function Home() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild className="rounded-full px-6">
-              {reviewableRecipe ? (
-                <Link to="/receita/$recipeId/avaliar" params={{ recipeId: reviewableRecipe.id }}>
-                  Avaliar uma receita
-                </Link>
-              ) : (
-                <Link to="/buscar" search={{ q: "" }}>
-                  Explorar receitas
-                </Link>
-              )}
+              <Link to="/buscar" search={{ q: "" }}>
+                Avaliar uma receita
+              </Link>
             </Button>
             <Button asChild variant="outline" className="rounded-full px-6">
-              <Link to="/publicar" search={{ editar: undefined }}>
-                Publicar receita
-              </Link>
+              <Link to="/publicar">Publicar receita</Link>
             </Button>
           </div>
         </div>

@@ -1,6 +1,15 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ChevronDown, CircleDollarSign, Flame, GripVertical, ImagePlus, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  CircleDollarSign,
+  Flame,
+  GripVertical,
+  ImagePlus,
+  Link2,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { toast } from "@/lib/feedback";
 import { FieldError } from "@/components/site/PasswordInput";
 import { PhotoPicker } from "@/components/site/PhotoPicker";
@@ -19,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { categories } from "@/lib/mock-data";
 import { api, apiUrl } from "@/lib/api";
+import type { RecipeDto } from "@/lib/recipes-api";
 import {
   createRecipeBlock,
   decodeRecipeSteps,
@@ -30,7 +40,8 @@ import {
 
 export const Route = createFileRoute("/publicar")({
   validateSearch: (search: Record<string, unknown>) => ({
-    editar: typeof search["editar"] === "string" ? search["editar"] : undefined,
+    ...(typeof search["editar"] === "string" ? { editar: search["editar"] } : {}),
+    ...(search["origem"] === "externa" ? { origem: "externa" as const } : {}),
   }),
   head: () => ({
     meta: [
@@ -49,12 +60,7 @@ export const Route = createFileRoute("/publicar")({
 
 type Errors = Partial<
   Record<
-    | "titulo"
-    | "resumo"
-    | "categoria"
-    | "tempo"
-    | "ingredientes"
-    | "passos",
+    "urlFonte" | "titulo" | "resumo" | "categoria" | "tempo" | "ingredientes" | "passos",
     string
   >
 >;
@@ -63,25 +69,59 @@ type IngredientEditorBlock =
   | { id: string; type: "section"; text: string }
   | { id: string; type: "ingredient"; nome: string; quantidade: string; unidadeMedida: string };
 
+type DraftIngredient =
+  | { id?: string; type: "section"; text?: string }
+  | {
+      id?: string;
+      type: "ingredient";
+      nome?: string;
+      quantidade?: string;
+      unidadeMedida?: string;
+      unidadePersonalizada?: string;
+    };
+
+type RecipeDraftContent = {
+  titulo?: string;
+  categoria?: string;
+  tempo?: string;
+  dificuldade?: string;
+  faixaCusto?: string;
+  resumo?: string;
+  rendimento?: string;
+  ingredients?: DraftIngredient[];
+  steps?: string[];
+  photo?: string | null;
+  urlFonte?: string;
+};
+
 function newIngredientBlock(): IngredientEditorBlock {
-  return { id: createRecipeBlock("step").id, type: "ingredient", nome: "", quantidade: "", unidadeMedida: "" };
+  return {
+    id: createRecipeBlock("step").id,
+    type: "ingredient",
+    nome: "",
+    quantidade: "",
+    unidadeMedida: "",
+  };
 }
 
 function newIngredientSection(): IngredientEditorBlock {
   return { id: createRecipeBlock("section").id, type: "section", text: "" };
 }
 
-function ingredientBlocksFromApi(items: any[]): IngredientEditorBlock[] {
+function ingredientBlocksFromApi(
+  items: NonNullable<RecipeDto["ingredientes"]>,
+): IngredientEditorBlock[] {
   const blocks: IngredientEditorBlock[] = [];
   let previousSection: string | null = null;
   for (const item of items) {
     const sectionTitle = getRecipeIngredientSectionTitle(item.observacao);
     if (sectionTitle && sectionTitle !== previousSection)
-      blocks.push({ ...newIngredientSection(), text: sectionTitle });
+      blocks.push({ id: newIngredientSection().id, type: "section", text: sectionTitle });
     previousSection = sectionTitle;
     blocks.push({
-      ...newIngredientBlock(),
-      nome: item.ingrediente ?? item.nome ?? "",
+      id: newIngredientBlock().id,
+      type: "ingredient",
+      nome: item.ingrediente ?? "",
       quantidade: item.quantidade == null ? "" : String(item.quantidade),
       unidadeMedida: item.unidadeMedida ?? "",
     });
@@ -160,7 +200,7 @@ function parseQuantity(value: string) {
   const normalized = value.trim().replace(",", ".");
   if (normalized.includes("/")) {
     const [numerator, denominator] = normalized.split("/").map(Number);
-    return denominator ? numerator / denominator : Number.NaN;
+    return numerator !== undefined && denominator ? numerator / denominator : Number.NaN;
   }
   return Number(normalized);
 }
@@ -184,9 +224,11 @@ function PublicarPage() {
 }
 
 function PublicarForm() {
-  const { editar } = Route.useSearch();
+  const { editar, origem } = Route.useSearch();
+  const externa = origem === "externa" && !editar;
   const navigate = useNavigate();
   const [titulo, setTitulo] = useState("");
+  const [urlFonte, setUrlFonte] = useState("");
   const [categoria, setCategoria] = useState("");
   const [tempo, setTempo] = useState("");
   const [dificuldade, setDificuldade] = useState("");
@@ -215,23 +257,25 @@ function PublicarForm() {
   const [savingDraft, setSavingDraft] = useState(false);
 
   useLayoutEffect(() => {
-    stepListRef.current?.querySelectorAll<HTMLTextAreaElement>("textarea[data-step-text]").forEach((textarea) => {
-      textarea.style.height = "auto";
-      textarea.style.height = `${textarea.scrollHeight}px`;
-    });
+    stepListRef.current
+      ?.querySelectorAll<HTMLTextAreaElement>("textarea[data-step-text]")
+      .forEach((textarea) => {
+        textarea.style.height = "auto";
+        textarea.style.height = `${textarea.scrollHeight}px`;
+      });
     const previous = previousStepPositions.current;
     previousStepPositions.current = null;
     if (!previous || performance.now() - previous.time > 300) return;
     stepListRef.current?.querySelectorAll<HTMLElement>("[data-step-block]").forEach((element) => {
-      const oldTop = previous.tops.get(element.dataset.stepBlock ?? "");
+      const oldTop = previous.tops.get(element.dataset["stepBlock"] ?? "");
       if (oldTop === undefined) return;
       const delta = oldTop - element.getBoundingClientRect().top;
       if (Math.abs(delta) < 1) return;
       element.getAnimations().forEach((animation) => animation.cancel());
-      element.animate(
-        [{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }],
-        { duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
-      );
+      element.animate([{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }], {
+        duration: 220,
+        easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+      });
     });
   }, [steps]);
 
@@ -270,15 +314,17 @@ function PublicarForm() {
 
       const previous = new Map<string, number>();
       elements.forEach((element) => {
-        if (element.dataset.stepBlock)
-          previous.set(element.dataset.stepBlock, element.getBoundingClientRect().top);
+        const blockId = element.dataset["stepBlock"];
+        if (blockId) previous.set(blockId, element.getBoundingClientRect().top);
       });
       previousStepPositions.current = { tops: previous, time: performance.now() };
       setSteps((items) => {
         const currentFrom = items.findIndex((block) => block.id === draggingBlockId);
-        if (currentFrom < 0 || target < 0 || target >= items.length || currentFrom === target) return items;
+        if (currentFrom < 0 || target < 0 || target >= items.length || currentFrom === target)
+          return items;
         const reordered = [...items];
         const [moved] = reordered.splice(currentFrom, 1);
+        if (!moved) return items;
         reordered.splice(target, 0, moved);
         return reordered;
       });
@@ -303,17 +349,17 @@ function PublicarForm() {
 
   useEffect(() => {
     if (editar) {
-      api<any>(`/api/receitas/${editar}`)
+      api<RecipeDto>(`/api/receitas/${editar}`)
         .then((r) => {
           setTitulo(r.titulo);
           setCategoria(r.categoria.slug);
           setTempo(String(r.tempoPreparo));
-          setDificuldade(r.dificuldade === "AVANCADO" ? "DIFICIL" : r.dificuldade ?? "");
+          setDificuldade(r.dificuldade === "AVANCADO" ? "DIFICIL" : (r.dificuldade ?? ""));
           setFaixaCusto(r.faixaCusto ?? "");
           setResumo(r.resumo ?? "");
           setRendimento(r.rendimento ?? "");
           setPhoto(r.fotoPrincipal ?? null);
-          setIngredients(ingredientBlocksFromApi(r.ingredientes));
+          setIngredients(ingredientBlocksFromApi(r.ingredientes ?? []));
           setSteps(decodeRecipeSteps(r.passos));
         })
         .catch((e) =>
@@ -330,22 +376,27 @@ function PublicarForm() {
       );
   }, [editar]);
 
-  const aplicarRascunho = (d: { id: number; conteudo: Record<string, any> }) => {
+  const aplicarRascunho = (d: { id: number; conteudo: RecipeDraftContent }) => {
     const c = d.conteudo;
     setDraftId(d.id);
     setTitulo(c["titulo"] ?? "");
     setCategoria(c["categoria"] ?? "");
     setTempo(c["tempo"] ?? "");
-    setDificuldade(c["dificuldade"] === "AVANCADO" ? "DIFICIL" : c["dificuldade"] ?? "");
+    setDificuldade(c["dificuldade"] === "AVANCADO" ? "DIFICIL" : (c["dificuldade"] ?? ""));
     setFaixaCusto(c["faixaCusto"] ?? "");
     setResumo(c["resumo"] ?? "");
     setRendimento(c["rendimento"] ?? "");
+    setUrlFonte(c["urlFonte"] ?? "");
     const draftIngredients = Array.isArray(c["ingredients"]) ? c["ingredients"] : [];
     setIngredients(
       draftIngredients.length
-        ? draftIngredients.map((item: any) =>
+        ? draftIngredients.map((item) =>
             item.type === "section"
-              ? { id: item.id ?? newIngredientSection().id, type: "section" as const, text: item.text ?? "" }
+              ? {
+                  id: item.id ?? newIngredientSection().id,
+                  type: "section" as const,
+                  text: item.text ?? "",
+                }
               : {
                   id: item.id ?? newIngredientBlock().id,
                   type: "ingredient" as const,
@@ -353,8 +404,8 @@ function PublicarForm() {
                   quantidade: item.quantidade ?? "",
                   unidadeMedida:
                     item.unidadeMedida === "__outra_unidade__"
-                      ? item.unidadePersonalizada ?? ""
-                      : item.unidadeMedida ?? "",
+                      ? (item.unidadePersonalizada ?? "")
+                      : (item.unidadeMedida ?? ""),
                 },
           )
         : [newIngredientBlock(), newIngredientBlock()],
@@ -378,6 +429,7 @@ function PublicarForm() {
         ingredients,
         steps: encodeRecipeSteps(steps),
         photo,
+        urlFonte: externa ? urlFonte : undefined,
       };
       const salvo = await api<{ id: number; titulo: string; atualizadoEm: string }>(
         draftId ? `/api/rascunhos/${draftId}` : "/api/rascunhos",
@@ -395,7 +447,7 @@ function PublicarForm() {
 
   const loadDraft = async (id: number) => {
     try {
-      const d = await api<{ id: number; conteudo: Record<string, any> }>(`/api/rascunhos/${id}`);
+      const d = await api<{ id: number; conteudo: RecipeDraftContent }>(`/api/rascunhos/${id}`);
       aplicarRascunho(d);
       toast.success("Rascunho carregado");
     } catch (e) {
@@ -417,6 +469,14 @@ function PublicarForm() {
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const next: Errors = {};
+    if (externa) {
+      try {
+        const url = new URL(urlFonte.trim());
+        if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error();
+      } catch {
+        next.urlFonte = "Cole um link completo começando com https://";
+      }
+    }
     if (titulo.trim().length < 3) next.titulo = "Dê um nome para a receita.";
     if (!resumo.trim()) next.resumo = "Informe a descrição da receita.";
     if (!categoria) next.categoria = "Escolha uma categoria.";
@@ -436,19 +496,26 @@ function PublicarForm() {
       next.ingredientes = "Informe quantidades positivas, usando vírgula ou ponto nos decimais.";
     if (ingredients.some((block) => block.type === "section" && !block.text.trim()))
       next.ingredientes = "Dê um título para cada seção de ingredientes.";
-    if (ingredients.some((block, index) => {
-      if (block.type !== "section") return false;
-      const following = ingredients.slice(index + 1);
-      const nextSection = following.findIndex((entry) => entry.type === "section");
-      const ownIngredients = following.slice(0, nextSection < 0 ? following.length : nextSection);
-      return !ownIngredients.some((entry) => entry.type === "ingredient" && entry.nome.trim());
-    }))
+    if (
+      ingredients.some((block, index) => {
+        if (block.type !== "section") return false;
+        const following = ingredients.slice(index + 1);
+        const nextSection = following.findIndex((entry) => entry.type === "section");
+        const ownIngredients = following.slice(0, nextSection < 0 ? following.length : nextSection);
+        return !ownIngredients.some((entry) => entry.type === "ingredient" && entry.nome.trim());
+      })
+    )
       next.ingredientes = "Adicione pelo menos um ingrediente em cada seção.";
     if (steps.some((block) => block.type === "section" && !block.text.trim()))
       next.passos = "Dê um título para cada seção.";
-    else if (steps.some((block, index) => block.type === "section" && !sectionHasStep(steps, index)))
+    else if (
+      steps.some((block, index) => block.type === "section" && !sectionHasStep(steps, index))
+    )
       next.passos = "Cada seção precisa ter ao menos um passo preenchido.";
-    if (!next.passos && steps.filter((block) => block.type === "step" && block.text.trim()).length < 1)
+    if (
+      !next.passos &&
+      steps.filter((block) => block.type === "step" && block.text.trim()).length < 1
+    )
       next.passos = "Descreva pelo menos 1 passo.";
     setErrors(next);
     if (Object.keys(next).length > 0) {
@@ -468,10 +535,13 @@ function PublicarForm() {
         ingredientes: serializeIngredientBlocks(ingredients),
         passos: encodeRecipeSteps(steps).filter((step) => step.trim()),
       };
-      await api(editar ? `/api/receitas/${editar}` : "/api/receitas", {
-        method: editar ? "PUT" : "POST",
-        body: JSON.stringify(payload),
-      });
+      await api(
+        editar ? `/api/receitas/${editar}` : externa ? "/api/receitas/indicacoes" : "/api/receitas",
+        {
+          method: editar ? "PUT" : "POST",
+          body: JSON.stringify(externa ? { ...payload, urlFonte: urlFonte.trim() } : payload),
+        },
+      );
       if (draftId) {
         try {
           await api(`/api/rascunhos/${draftId}`, { method: "DELETE" });
@@ -480,7 +550,11 @@ function PublicarForm() {
         }
       }
       toast.success(
-        editar ? "Receita atualizada e publicada" : "Receita publicada",
+        editar
+          ? "Receita atualizada e publicada"
+          : externa
+            ? "Receita enviada para curadoria"
+            : "Receita publicada",
       );
       navigate({ to: "/perfil" });
     } catch (error) {
@@ -488,21 +562,33 @@ function PublicarForm() {
     }
   };
 
-  const updateIngredient = (id: string, patch: Partial<Extract<IngredientEditorBlock, { type: "ingredient" }>>) =>
-    setIngredients((prev) => prev.map((item) =>
-      item.id === id && item.type === "ingredient" ? { ...item, ...patch } : item,
-    ));
+  const updateIngredient = (
+    id: string,
+    patch: Partial<Extract<IngredientEditorBlock, { type: "ingredient" }>>,
+  ) =>
+    setIngredients((prev) =>
+      prev.map((item) =>
+        item.id === id && item.type === "ingredient" ? { ...item, ...patch } : item,
+      ),
+    );
   const canAddPreparationSection = steps.every(
-    (block, index) => block.type !== "section" || (block.text.trim() && sectionHasStep(steps, index)),
+    (block, index) =>
+      block.type !== "section" || (block.text.trim() && sectionHasStep(steps, index)),
   );
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-12">
       <h1 className="text-3xl font-semibold text-foreground">
-        {editar ? "Editar receita" : "Publicar uma receita"}
+        {editar
+          ? "Editar receita"
+          : externa
+            ? "Indicar uma receita externa"
+            : "Publicar uma receita"}
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Quanto mais precisa a informação, maior a chance da sua receita ser verificada.
+        {externa
+          ? "Preencha a receita completa e informe o link da publicação original. A curadoria revisará os dados antes de ela aparecer para a comunidade."
+          : "Quanto mais precisa a informação, maior a chance da sua receita ser verificada."}
       </p>
 
       {!editar && drafts.length > 0 && (
@@ -538,6 +624,29 @@ function PublicarForm() {
         <section className="rounded-3xl border border-border bg-card p-6 shadow-soft">
           <h2 className="text-lg font-semibold text-foreground">Informações básicas</h2>
           <div className="mt-5 space-y-4">
+            {externa && (
+              <div>
+                <Label htmlFor="urlFonte">Link da receita original *</Label>
+                <div className="relative mt-2">
+                  <Link2
+                    width={16}
+                    height={16}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    id="urlFonte"
+                    value={urlFonte}
+                    onChange={(event) => setUrlFonte(event.target.value)}
+                    type="url"
+                    inputMode="url"
+                    aria-invalid={Boolean(errors.urlFonte)}
+                    placeholder="https://instagram.com/p/..."
+                    className="rounded-xl bg-background pl-10"
+                  />
+                </div>
+                <FieldError>{errors.urlFonte}</FieldError>
+              </div>
+            )}
             <div>
               <Label htmlFor="titulo">Título da receita *</Label>
               <Input
@@ -551,7 +660,9 @@ function PublicarForm() {
               <FieldError>{errors.titulo}</FieldError>
             </div>
             <div>
-              <Label htmlFor="resumo">Descrição *</Label>
+              <Label htmlFor="resumo">
+                {externa ? "Descrição e por que vale a pena testar *" : "Descrição *"}
+              </Label>
               <Textarea
                 id="resumo"
                 name="resumo"
@@ -559,7 +670,11 @@ function PublicarForm() {
                 onChange={(e) => setResumo(e.target.value)}
                 aria-invalid={Boolean(errors.resumo)}
                 rows={3}
-                placeholder="Faça uma breve descrição sobre a receita."
+                placeholder={
+                  externa
+                    ? "Descreva a receita e conte por que vale a pena testá-la."
+                    : "Faça uma breve descrição sobre a receita."
+                }
                 className="mt-2 rounded-xl bg-background"
               />
               <FieldError>{errors.resumo}</FieldError>
@@ -611,9 +726,7 @@ function PublicarForm() {
                 />
               </div>
               <fieldset>
-                <legend className="text-sm font-medium leading-none">
-                  Dificuldade
-                </legend>
+                <legend className="text-sm font-medium leading-none">Dificuldade</legend>
                 <div
                   role="radiogroup"
                   aria-label="Dificuldade"
@@ -621,7 +734,9 @@ function PublicarForm() {
                   className="mt-3 flex gap-2.5"
                 >
                   {difficultyOptions.map((option, index) => {
-                    const selectedIndex = difficultyOptions.findIndex((item) => item.value === dificuldade);
+                    const selectedIndex = difficultyOptions.findIndex(
+                      (item) => item.value === dificuldade,
+                    );
                     const highlightedIndex = hoverDifficultyIndex ?? selectedIndex;
                     const active = highlightedIndex >= index;
                     return (
@@ -654,11 +769,14 @@ function PublicarForm() {
                   })}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {difficultyOptions.find((option) => option.value === dificuldade)?.label ?? "Opcional"}
+                  {difficultyOptions.find((option) => option.value === dificuldade)?.label ??
+                    "Opcional"}
                 </p>
               </fieldset>
               <fieldset>
-                <legend className="text-sm font-medium leading-none">Custo <span className="text-muted-foreground">(opcional)</span></legend>
+                <legend className="text-sm font-medium leading-none">
+                  Custo <span className="text-muted-foreground">(opcional)</span>
+                </legend>
                 <div
                   role="radiogroup"
                   aria-label="Custo estimado"
@@ -666,7 +784,9 @@ function PublicarForm() {
                   className="mt-3 flex gap-2.5"
                 >
                   {costOptions.map((option, index) => {
-                    const selectedIndex = costOptions.findIndex((item) => item.value === faixaCusto);
+                    const selectedIndex = costOptions.findIndex(
+                      (item) => item.value === faixaCusto,
+                    );
                     const highlightedIndex = hoverCostIndex ?? selectedIndex;
                     const active = highlightedIndex >= index;
                     return (
@@ -695,7 +815,8 @@ function PublicarForm() {
                   })}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {costOptions.find((option) => option.value === faixaCusto)?.label ?? "Escolha uma opção"}
+                  {costOptions.find((option) => option.value === faixaCusto)?.label ??
+                    "Escolha uma opção"}
                 </p>
               </fieldset>
             </div>
@@ -723,17 +844,24 @@ function PublicarForm() {
             {ingredients.map((block, i) => {
               if (block.type === "section") {
                 return (
-                  <div key={block.id} className="flex items-center gap-2 rounded-2xl border border-caramel/20 bg-warm/60 p-2">
+                  <div
+                    key={block.id}
+                    className="flex items-center gap-2 rounded-2xl border border-caramel/20 bg-warm/60 p-2"
+                  >
                     <span className="shrink-0 px-2 text-xs font-semibold uppercase tracking-wide text-caramel">
                       Ingredientes para
                     </span>
                     <Input
                       value={block.text}
-                      onChange={(event) => setIngredients((current) => current.map((entry) =>
-                        entry.id === block.id && entry.type === "section"
-                          ? { ...entry, text: event.target.value }
-                          : entry,
-                      ))}
+                      onChange={(event) =>
+                        setIngredients((current) =>
+                          current.map((entry) =>
+                            entry.id === block.id && entry.type === "section"
+                              ? { ...entry, text: event.target.value }
+                              : entry,
+                          ),
+                        )
+                      }
                       maxLength={100}
                       placeholder="Ex.: Cobertura"
                       aria-label="Título da seção de ingredientes"
@@ -745,7 +873,11 @@ function PublicarForm() {
                       size="icon"
                       className="shrink-0 rounded-xl"
                       aria-label="Remover seção de ingredientes"
-                      onClick={() => setIngredients((current) => current.filter((entry) => entry.id !== block.id))}
+                      onClick={() =>
+                        setIngredients((current) =>
+                          current.filter((entry) => entry.id !== block.id),
+                        )
+                      }
                     >
                       <Trash2 width={16} height={16} />
                     </Button>
@@ -753,14 +885,25 @@ function PublicarForm() {
                 );
               }
 
-              const ingredientNumber = ingredients.slice(0, i + 1).filter((entry) => entry.type === "ingredient").length;
-              const selectedUnit = ingredientUnits.find((unit) => unit.value === block.unidadeMedida);
-              const unitQuery = selectedUnit ? "" : block.unidadeMedida.trim().toLocaleLowerCase("pt-BR");
+              const ingredientNumber = ingredients
+                .slice(0, i + 1)
+                .filter((entry) => entry.type === "ingredient").length;
+              const selectedUnit = ingredientUnits.find(
+                (unit) => unit.value === block.unidadeMedida,
+              );
+              const unitQuery = selectedUnit
+                ? ""
+                : block.unidadeMedida.trim().toLocaleLowerCase("pt-BR");
               const unitSuggestions = ingredientUnits.filter(
-                (unit) => !unitQuery || `${unit.value} ${unit.label}`.toLocaleLowerCase("pt-BR").includes(unitQuery),
+                (unit) =>
+                  !unitQuery ||
+                  `${unit.value} ${unit.label}`.toLocaleLowerCase("pt-BR").includes(unitQuery),
               );
               return (
-                <div key={block.id} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_160px_auto]">
+                <div
+                  key={block.id}
+                  className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_130px_160px_auto]"
+                >
                   <Input
                     value={block.nome}
                     onChange={(event) => updateIngredient(block.id, { nome: event.target.value })}
@@ -776,7 +919,9 @@ function PublicarForm() {
                         updateIngredient(block.id, { quantidade: event.target.value });
                     }}
                     disabled={isTasteUnit(block.unidadeMedida)}
-                    placeholder={isTasteUnit(block.unidadeMedida) ? "Sem quantidade" : "Qtd. (ex.: 1/2)"}
+                    placeholder={
+                      isTasteUnit(block.unidadeMedida) ? "Sem quantidade" : "Qtd. (ex.: 1/2)"
+                    }
                     aria-label={`Quantidade do ingrediente ${ingredientNumber}`}
                     className="rounded-xl bg-background tabular-nums"
                   />
@@ -794,9 +939,12 @@ function PublicarForm() {
                       onBlur={() => setOpenUnitSuggestions(null)}
                       onChange={(event) => {
                         const typedValue = event.target.value;
-                        const unit = ingredientUnits.find(
-                          (option) => option.label.toLocaleLowerCase("pt-BR") === typedValue.toLocaleLowerCase("pt-BR"),
-                        )?.value ?? typedValue;
+                        const unit =
+                          ingredientUnits.find(
+                            (option) =>
+                              option.label.toLocaleLowerCase("pt-BR") ===
+                              typedValue.toLocaleLowerCase("pt-BR"),
+                          )?.value ?? typedValue;
                         updateIngredient(block.id, {
                           unidadeMedida: unit,
                           quantidade: isTasteUnit(unit) ? "" : block.quantidade,
@@ -813,10 +961,16 @@ function PublicarForm() {
                       aria-label="Mostrar unidades disponíveis"
                       aria-expanded={openUnitSuggestions === block.id}
                       onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => setOpenUnitSuggestions(openUnitSuggestions === block.id ? null : block.id)}
+                      onClick={() =>
+                        setOpenUnitSuggestions(openUnitSuggestions === block.id ? null : block.id)
+                      }
                       className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <ChevronDown width={16} height={16} className={`transition-transform duration-150 ${openUnitSuggestions === block.id ? "rotate-180" : ""}`} />
+                      <ChevronDown
+                        width={16}
+                        height={16}
+                        className={`transition-transform duration-150 ${openUnitSuggestions === block.id ? "rotate-180" : ""}`}
+                      />
                     </button>
                     {openUnitSuggestions === block.id && unitSuggestions.length > 0 && (
                       <div
@@ -852,8 +1006,12 @@ function PublicarForm() {
                     size="icon"
                     className="shrink-0 rounded-xl"
                     aria-label={`Remover ingrediente ${ingredientNumber}`}
-                    disabled={ingredients.filter((entry) => entry.type === "ingredient").length <= 1}
-                    onClick={() => setIngredients((current) => current.filter((entry) => entry.id !== block.id))}
+                    disabled={
+                      ingredients.filter((entry) => entry.type === "ingredient").length <= 1
+                    }
+                    onClick={() =>
+                      setIngredients((current) => current.filter((entry) => entry.id !== block.id))
+                    }
                   >
                     <Trash2 width={16} height={16} />
                   </Button>
@@ -886,15 +1044,15 @@ function PublicarForm() {
             className="mt-4 space-y-2.5"
           >
             {steps.map((block, i) => {
-              const stepNumber = steps.slice(0, i + 1).filter((entry) => entry.type === "step").length;
+              const stepNumber = steps
+                .slice(0, i + 1)
+                .filter((entry) => entry.type === "step").length;
               return (
                 <div
                   key={block.id}
                   data-step-block={block.id}
                   className={`relative flex items-center gap-2 rounded-2xl transition-[box-shadow,opacity] duration-150 ${
-                    draggingBlockId === block.id
-                      ? "z-10 opacity-95"
-                      : ""
+                    draggingBlockId === block.id ? "z-10 opacity-95" : ""
                   }`}
                 >
                   <button
@@ -911,7 +1069,8 @@ function PublicarForm() {
                       setDraggingBlockId(block.id);
                     }}
                     onKeyDown={(event) => {
-                      const offset = event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
+                      const offset =
+                        event.key === "ArrowUp" ? -1 : event.key === "ArrowDown" ? 1 : 0;
                       if (!offset) return;
                       event.preventDefault();
                       setSteps((current) => {
@@ -920,11 +1079,16 @@ function PublicarForm() {
                         if (from < 0 || to < 0 || to >= current.length) return current;
                         const reordered = [...current];
                         const [moved] = reordered.splice(from, 1);
+                        if (!moved) return current;
                         reordered.splice(to, 0, moved);
                         return reordered;
                       });
                     }}
-                    aria-label={block.type === "section" ? "Arraste ou use as setas para mover a seção" : `Arraste ou use as setas para mover o passo ${stepNumber}`}
+                    aria-label={
+                      block.type === "section"
+                        ? "Arraste ou use as setas para mover a seção"
+                        : `Arraste ou use as setas para mover o passo ${stepNumber}`
+                    }
                     title="Arraste para reorganizar"
                     className={`flex h-9 w-8 shrink-0 touch-none cursor-grab items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-warm hover:text-foreground active:cursor-grabbing ${
                       draggingBlockId === block.id ? "bg-warm text-caramel" : ""
@@ -938,9 +1102,13 @@ function PublicarForm() {
                         <Input
                           value={block.text}
                           onChange={(event) =>
-                            setSteps((current) => current.map((entry) =>
-                              entry.id === block.id ? { ...entry, text: event.target.value } : entry,
-                            ))
+                            setSteps((current) =>
+                              current.map((entry) =>
+                                entry.id === block.id
+                                  ? { ...entry, text: event.target.value }
+                                  : entry,
+                              ),
+                            )
                           }
                           maxLength={100}
                           placeholder="Nome da seção"
@@ -958,7 +1126,9 @@ function PublicarForm() {
                         size="icon"
                         className="shrink-0 rounded-xl"
                         aria-label="Remover seção"
-                        onClick={() => setSteps((current) => current.filter((entry) => entry.id !== block.id))}
+                        onClick={() =>
+                          setSteps((current) => current.filter((entry) => entry.id !== block.id))
+                        }
                       >
                         <Trash2 width={16} height={16} />
                       </Button>
@@ -972,9 +1142,13 @@ function PublicarForm() {
                         data-step-text="true"
                         value={block.text}
                         onChange={(event) =>
-                          setSteps((current) => current.map((entry) =>
-                            entry.id === block.id ? { ...entry, text: event.target.value } : entry,
-                          ))
+                          setSteps((current) =>
+                            current.map((entry) =>
+                              entry.id === block.id
+                                ? { ...entry, text: event.target.value }
+                                : entry,
+                            ),
+                          )
                         }
                         rows={1}
                         placeholder="Descreva o passo com tempo e sinais visuais"
@@ -987,7 +1161,9 @@ function PublicarForm() {
                         className="shrink-0 rounded-xl"
                         aria-label={`Remover passo ${stepNumber}`}
                         disabled={steps.filter((entry) => entry.type === "step").length === 1}
-                        onClick={() => setSteps((current) => current.filter((entry) => entry.id !== block.id))}
+                        onClick={() =>
+                          setSteps((current) => current.filter((entry) => entry.id !== block.id))
+                        }
                       >
                         <Trash2 width={16} height={16} />
                       </Button>
@@ -1014,11 +1190,13 @@ function PublicarForm() {
               size="sm"
               className="rounded-full"
               disabled={!canAddPreparationSection}
-              onClick={() => setSteps((current) => [
-                ...current,
-                createRecipeBlock("section"),
-                createRecipeBlock("step"),
-              ])}
+              onClick={() =>
+                setSteps((current) => [
+                  ...current,
+                  createRecipeBlock("section"),
+                  createRecipeBlock("step"),
+                ])
+              }
             >
               <Plus width={14} height={14} /> Adicionar seção
             </Button>
@@ -1036,7 +1214,11 @@ function PublicarForm() {
             {savingDraft ? "Salvando…" : "Salvar rascunho"}
           </Button>
           <Button type="submit" className="rounded-full px-7">
-            {editar ? "Salvar alterações" : "Publicar receita"}
+            {editar
+              ? "Salvar alterações"
+              : externa
+                ? "Enviar receita para curadoria"
+                : "Publicar receita"}
           </Button>
         </div>
       </form>

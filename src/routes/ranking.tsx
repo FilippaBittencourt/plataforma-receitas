@@ -125,7 +125,7 @@ function RankingPage() {
                     {r.successRate}%
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {r.testedCount.toLocaleString("pt-BR")} testes
+                    {r.testedCount.toLocaleString("pt-BR")} pessoas
                   </p>
                 </div>
               </Link>

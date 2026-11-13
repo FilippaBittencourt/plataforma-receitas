@@ -2,6 +2,7 @@ package br.com.cookie.api.comentario;
 
 import java.time.Instant;
 
+import br.com.cookie.api.avaliacao.Avaliacao;
 import br.com.cookie.api.receita.Receita;
 import br.com.cookie.api.usuario.Usuario;
 import jakarta.persistence.Column;
@@ -34,6 +35,10 @@ public class Comentario {
     @JoinColumn(name = "id_usuario", nullable = false)
     private Usuario autor;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_avaliacao")
+    private Avaliacao avaliacao;
+
     @Column(name = "foto_resultado", length = 500)
     private String fotoResultado;
 
@@ -57,6 +62,11 @@ public class Comentario {
         this.fotoResultado = fotoResultado;
     }
 
+    public Comentario(Receita receita, Usuario autor, String texto, String fotoResultado, Avaliacao avaliacao) {
+        this(receita, autor, texto, fotoResultado);
+        this.avaliacao = avaliacao;
+    }
+
     @PrePersist
     void aoCriar() {
         if (dataComentario == null) {
@@ -74,6 +84,10 @@ public class Comentario {
 
     public Usuario getAutor() {
         return autor;
+    }
+
+    public Avaliacao getAvaliacao() {
+        return avaliacao;
     }
 
     public String getFotoResultado() {

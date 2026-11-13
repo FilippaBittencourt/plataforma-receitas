@@ -21,10 +21,12 @@ import { Shell } from "@/components/site/Shell";
 import { Stars } from "@/components/site/Stars";
 import { VerifiedBadge } from "@/components/site/VerifiedBadge";
 import { CriteriaBars } from "@/components/site/CriteriaBars";
+import { PhotoPicker } from "@/components/site/PhotoPicker";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
 import { api, apiUrl } from "@/lib/api";
 import { requestText, toast } from "@/lib/feedback";
 import { getRecipe, searchRecipes } from "@/lib/recipes-api";
@@ -96,7 +98,7 @@ function RecipePage() {
   const { recipe } = Route.useLoaderData();
   const navigate = useNavigate();
   const { user, ready } = useAuth();
-  const podeAvaliar = ready && user?.id !== recipe.authorId;
+  const podeAvaliar = ready && recipe.status === "APROVADA" && user?.id !== recipe.authorId;
   const podeExcluir = user?.role === "moderador" || user?.id === recipe.authorId;
   const excluirReceita = async () => {
     await api(`/api/receitas/${recipe.id}`, { method: "DELETE" });
@@ -110,37 +112,96 @@ function RecipePage() {
       fotoResultado: string | null;
       dataComentario: string;
       autor: { id: number; nome: string; nomeUsuario: string } | null;
+      avaliacao: { media: number; funcionou: boolean } | null;
     }[]
   >([]);
   const [comment, setComment] = useState("");
+  const [commentPhoto, setCommentPhoto] = useState<string | null>(null);
+  const [commentPhotoUploading, setCommentPhotoUploading] = useState(false);
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [commentError, setCommentError] = useState("");
   const [commentToDelete, setCommentToDelete] = useState<number | null>(null);
   const [deletingComment, setDeletingComment] = useState(false);
+  const [communityPhotos, setCommunityPhotos] = useState<
+    {
+      id: number;
+      fotoResultado: string;
+      dataComentario: string;
+    }[]
+  >([]);
+  const [communityPhotosPage, setCommunityPhotosPage] = useState(0);
+  const [communityPhotosHasMore, setCommunityPhotosHasMore] = useState(false);
+  const [communityPhotosLoading, setCommunityPhotosLoading] = useState(false);
+  const [communityPhotosError, setCommunityPhotosError] = useState("");
+  const [selectedPhoto, setSelectedPhoto] = useState<{ src: string; label: string } | null>(null);
   const loadComments = useCallback(
     () =>
-      api<{ itens: typeof comments }>(`/api/receitas/${recipe.id}/comentarios`)
-        .then((r) => setComments(r.itens))
+      api<{ itens: typeof comments }>(`/api/receitas/${recipe.id}/comentarios?tamanho=50`)
+        .then((r) => {
+          setComments(r.itens);
+          setCommentError("");
+        })
         .catch((e) =>
           setCommentError(e instanceof Error ? e.message : "Erro ao carregar comentários."),
         ),
     [recipe.id],
   );
   useEffect(() => {
-    void loadComments();
-  }, [loadComments]);
+    if (recipe.status === "APROVADA") void loadComments();
+  }, [loadComments, recipe.status]);
+  const loadCommunityPhotos = useCallback(
+    async (page = 0, append = false) => {
+      setCommunityPhotosLoading(true);
+      setCommunityPhotosError("");
+      try {
+        const result = await api<{
+          itens: typeof communityPhotos;
+          pagina: number;
+          totalPaginas: number;
+        }>(`/api/receitas/${recipe.id}/fotos?pagina=${page}&tamanho=24`);
+        setCommunityPhotos((current) => (append ? [...current, ...result.itens] : result.itens));
+        setCommunityPhotosPage(result.pagina);
+        setCommunityPhotosHasMore(result.pagina + 1 < result.totalPaginas);
+      } catch (error) {
+        setCommunityPhotosError(
+          error instanceof Error ? error.message : "Erro ao carregar fotos da comunidade.",
+        );
+      } finally {
+        setCommunityPhotosLoading(false);
+      }
+    },
+    [recipe.id],
+  );
+  useEffect(() => {
+    if (recipe.status === "APROVADA") void loadCommunityPhotos();
+  }, [loadCommunityPhotos, recipe.status]);
+  const galleryPhotos = [
+    ...recipe.communityPhotos.map((src, index) => ({
+      id: `recipe-${index}`,
+      src,
+    })),
+    ...communityPhotos.map((photo) => ({
+      id: `comment-${photo.id}`,
+      src: apiUrl(photo.fotoResultado),
+    })),
+  ];
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!comment.trim()) return;
+    if (!comment.trim() || commentPhotoUploading || commentSubmitting) return;
+    setCommentSubmitting(true);
     try {
       await api(`/api/receitas/${recipe.id}/comentarios`, {
         method: "POST",
-        body: JSON.stringify({ texto: comment.trim(), fotoResultado: null }),
+        body: JSON.stringify({ texto: comment.trim(), fotoResultado: commentPhoto }),
       });
       setComment("");
-      await loadComments();
+      setCommentPhoto(null);
+      await Promise.all([loadComments(), loadCommunityPhotos()]);
       toast.success("Comentário publicado");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível comentar.");
+    } finally {
+      setCommentSubmitting(false);
     }
   };
   const reportComment = async (id: number) => {
@@ -167,7 +228,7 @@ function RecipePage() {
     try {
       await api(`/api/comentarios/${id}`, { method: "DELETE" });
       setCommentToDelete(null);
-      await loadComments();
+      await Promise.all([loadComments(), loadCommunityPhotos()]);
       toast.success("Comentário excluído");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível excluir o comentário.");
@@ -211,8 +272,8 @@ function RecipePage() {
           <ArrowLeft width={14} height={14} /> Voltar para a busca
         </Link>
 
-        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start">
-          <div className="relative aspect-[4/3] min-w-0 w-full max-h-[480px] overflow-hidden rounded-[2rem] shadow-lifted">
+        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-stretch">
+          <div className="relative aspect-[4/3] min-w-0 w-full overflow-hidden rounded-[2rem] shadow-lifted lg:aspect-auto lg:min-h-0">
             {recipe.hasPhoto === false ? (
               <RecipePhotoPlaceholder className="absolute inset-0 h-full w-full" />
             ) : (
@@ -299,7 +360,11 @@ function RecipePage() {
               </p>
               <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-4 lg:mt-3 lg:gap-2">
                 {[
-                  { icon: Clock, label: "Tempo", value: recipe.timeMinutes == null ? "-" : `${recipe.timeMinutes} min` },
+                  {
+                    icon: Clock,
+                    label: "Tempo",
+                    value: recipe.timeMinutes == null ? "-" : `${recipe.timeMinutes} min`,
+                  },
                   { icon: Utensils, label: "Rendimento", value: recipe.yield },
                   { icon: Flame, label: "Dificuldade", value: recipe.difficulty },
                   { icon: CircleDollarSign, label: "Custo", value: recipe.cost ?? "-" },
@@ -337,7 +402,7 @@ function RecipePage() {
                   <p className="font-display text-4xl font-semibold text-verified lg:text-3xl">
                     {recipe.successRate}%
                   </p>
-                  <p className="mt-1 text-xs text-muted-foreground">tiveram sucesso</p>
+                  <p className="mt-1 text-xs text-muted-foreground">tentativas deram certo</p>
                 </div>
                 <div>
                   <p className="font-display text-4xl font-semibold text-foreground lg:text-3xl">
@@ -360,16 +425,16 @@ function RecipePage() {
               <div className="mt-5 flex flex-wrap gap-3">
                 <Button asChild className="h-11 rounded-full px-6">
                   <Link to="/receita/$recipeId/avaliar" params={{ recipeId: recipe.id }}>
-                    Avaliar receita
+                    Registrar avaliação
                   </Link>
                 </Button>
                 <Button asChild variant="outline" className="h-11 rounded-full px-6">
                   <Link
-                    to="/receita/$recipeId/avaliar"
+                    to="/receita/$recipeId"
                     params={{ recipeId: recipe.id }}
-                    hash="foto"
+                    hash="novo-comentario"
                   >
-                    <Camera width={16} height={16} /> Enviar foto do resultado
+                    <Camera width={16} height={16} /> Comentar com foto
                   </Link>
                 </Button>
               </div>
@@ -383,7 +448,7 @@ function RecipePage() {
             <section>
               <h2 className="text-2xl font-semibold text-foreground">Ingredientes</h2>
               <ul className="mt-5 divide-y divide-border overflow-hidden rounded-3xl border border-border bg-card">
-                {recipe.ingredients.map((i, idx) => (
+                {recipe.ingredients.map((i, idx) =>
                   getRecipeIngredientSectionTitle(i) ? (
                     <li
                       key={`${recipe.id}-ingrediente-secao-${idx}`}
@@ -399,8 +464,8 @@ function RecipePage() {
                       <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-caramel" />
                       {i}
                     </li>
-                  )
-                ))}
+                  ),
+                )}
               </ul>
             </section>
 
@@ -444,28 +509,77 @@ function RecipePage() {
                 <h2 className="text-2xl font-semibold text-foreground">Fotos da comunidade</h2>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
-                Resultados enviados por quem cozinhou — sem edição de estúdio.
+                Resultados enviados por quem cozinhou.
               </p>
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {recipe.communityPhotos.map((p, i) => (
-                  <img
-                    key={i}
-                    src={p}
-                    alt={`Resultado enviado pela comunidade ${i + 1}`}
-                    loading="lazy"
-                    width={1024}
-                    height={768}
-                    className="aspect-square w-full rounded-2xl object-cover shadow-soft"
-                  />
-                ))}
-              </div>
+              {communityPhotosError && (
+                <p role="alert" className="mt-4 text-sm text-destructive">
+                  {communityPhotosError}
+                </p>
+              )}
+              {galleryPhotos.length ? (
+                <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {galleryPhotos.map((photo, index) => (
+                    <button
+                      key={photo.id}
+                      type="button"
+                      aria-label={`Abrir foto ${index + 1} da comunidade`}
+                      className="overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2"
+                      onClick={() =>
+                        setSelectedPhoto({
+                          src: photo.src,
+                          label: `Foto ${index + 1} da comunidade`,
+                        })
+                      }
+                    >
+                      <img
+                        src={photo.src}
+                        alt=""
+                        loading="lazy"
+                        width={1024}
+                        height={768}
+                        className="aspect-square w-full rounded-2xl object-cover shadow-soft"
+                      />
+                    </button>
+                  ))}
+                </div>
+              ) : !communityPhotosLoading && !communityPhotosError ? (
+                <p className="mt-5 text-sm text-muted-foreground">
+                  Ainda não há fotos da comunidade nesta receita.
+                </p>
+              ) : null}
+              {communityPhotosHasMore && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-5 rounded-full"
+                  disabled={communityPhotosLoading}
+                  onClick={() => void loadCommunityPhotos(communityPhotosPage + 1, true)}
+                >
+                  {communityPhotosLoading ? "Carregando fotos…" : "Ver mais fotos"}
+                </Button>
+              )}
+              <Dialog
+                open={selectedPhoto !== null}
+                onOpenChange={(open) => !open && setSelectedPhoto(null)}
+              >
+                <DialogContent className="w-[calc(100vw-2rem)] max-w-5xl justify-items-center border-0 bg-transparent p-0 shadow-none [&>button]:-top-10 [&>button]:right-0 [&>button]:text-white [&>button]:opacity-100">
+                  <DialogTitle className="sr-only">{selectedPhoto?.label}</DialogTitle>
+                  {selectedPhoto && (
+                    <img
+                      src={selectedPhoto.src}
+                      alt={selectedPhoto.label}
+                      className="max-h-[85vh] max-w-full rounded-xl object-contain"
+                    />
+                  )}
+                </DialogContent>
+              </Dialog>
             </section>
 
             {/* Comments */}
             <section className="mt-12">
               <div className="flex items-center gap-2">
                 <MessageCircle width={18} height={18} className="text-caramel" />
-                <h2 className="text-2xl font-semibold text-foreground">Comentários e avaliações</h2>
+                <h2 className="text-2xl font-semibold text-foreground">Comentários</h2>
               </div>
               <div className="mt-5 space-y-4">
                 {commentError && (
@@ -478,60 +592,86 @@ function RecipePage() {
                     Ainda não há comentários nesta receita.
                   </p>
                 )}
-                {comments.map((rev) => (
-                  <div
-                    key={rev.id}
-                    className="rounded-3xl border border-border bg-card p-5 shadow-soft"
-                  >
-                    <div className="flex items-start gap-3">
-                      <Avatar className="h-9 w-9 border border-border">
-                        <AvatarFallback className="bg-accent text-xs text-accent-foreground">
-                          {(rev.autor?.nome ?? "?").slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                          <p className="text-sm font-semibold text-foreground">
-                            {rev.autor?.nome ?? "Conta removida"}
+                {comments.map((rev) => {
+                  const rating = rev.avaliacao;
+                  return (
+                    <div
+                      key={rev.id}
+                      className="rounded-3xl border border-border bg-card p-5 shadow-soft"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-9 w-9 border border-border">
+                          <AvatarFallback className="bg-accent text-xs text-accent-foreground">
+                            {(rev.autor?.nome ?? "?").slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <p className="text-sm font-semibold text-foreground">
+                              {rev.autor?.nome ?? "Conta removida"}
+                            </p>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(rev.dataComentario).toLocaleDateString("pt-BR")}
+                            </span>
+                            {rating && (
+                              <span className="inline-flex items-center gap-1.5 rounded-full bg-warm px-2.5 py-1 text-xs text-foreground">
+                                <Stars value={rating.media} size={11} />
+                                <span>{rating.media.toFixed(1)}/5</span>
+                                <span className="text-muted-foreground">
+                                  · {rating.funcionou ? "Deu certo" : "Não deu certo"}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-2 text-sm leading-relaxed text-foreground">
+                            {rev.texto}
                           </p>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(rev.dataComentario).toLocaleDateString("pt-BR")}
-                          </span>
+                          {user && user.id !== String(rev.autor?.id) && (
+                            <button
+                              type="button"
+                              className="mt-2 text-xs text-muted-foreground underline hover:text-foreground"
+                              onClick={() => void reportComment(rev.id)}
+                            >
+                              Denunciar comentário
+                            </button>
+                          )}
+                          {user?.id === String(rev.autor?.id) && (
+                            <button
+                              type="button"
+                              className="mt-2 inline-flex items-center gap-1 text-xs text-destructive underline hover:text-destructive/80"
+                              onClick={() => setCommentToDelete(rev.id)}
+                            >
+                              <Trash2 size={13} aria-hidden="true" />
+                              Excluir meu comentário
+                            </button>
+                          )}
+                          {rev.fotoResultado && (
+                            <button
+                              type="button"
+                              aria-label="Abrir foto do resultado do comentário"
+                              className="mt-3 block h-28 w-40 overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-caramel focus-visible:ring-offset-2"
+                              onClick={() =>
+                                setSelectedPhoto({
+                                  src: apiUrl(rev.fotoResultado),
+                                  label: "Foto do resultado do comentário",
+                                })
+                              }
+                            >
+                              <img
+                                src={apiUrl(rev.fotoResultado)}
+                                alt=""
+                                loading="lazy"
+                                width={1024}
+                                height={768}
+                                className="h-full w-full object-cover"
+                              />
+                            </button>
+                          )}
                         </div>
-                        <p className="mt-2 text-sm leading-relaxed text-foreground">{rev.texto}</p>
-                        {user && user.id !== String(rev.autor?.id) && (
-                          <button
-                            type="button"
-                            className="mt-2 text-xs text-muted-foreground underline hover:text-foreground"
-                            onClick={() => void reportComment(rev.id)}
-                          >
-                            Denunciar comentário
-                          </button>
-                        )}
-                        {user?.id === String(rev.autor?.id) && (
-                          <button
-                            type="button"
-                            className="mt-2 inline-flex items-center gap-1 text-xs text-destructive underline hover:text-destructive/80"
-                            onClick={() => setCommentToDelete(rev.id)}
-                          >
-                            <Trash2 size={13} aria-hidden="true" />
-                            Excluir meu comentário
-                          </button>
-                        )}
-                        {rev.fotoResultado && (
-                          <img
-                            src={apiUrl(rev.fotoResultado)}
-                            alt="Foto do resultado"
-                            loading="lazy"
-                            width={1024}
-                            height={768}
-                            className="mt-3 h-28 w-40 rounded-2xl object-cover"
-                          />
-                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 {user && (
                   <form
                     onSubmit={submitComment}
@@ -549,8 +689,26 @@ function RecipePage() {
                       className="mt-3 rounded-xl"
                       placeholder="Conte como foi preparar esta receita"
                     />
-                    <Button type="submit" className="mt-3 rounded-full" disabled={!comment.trim()}>
-                      Publicar comentário
+                    <PhotoPicker
+                      key={commentPhoto ?? "sem-foto"}
+                      className="mt-4"
+                      icon={<Camera width={20} height={20} className="text-caramel" />}
+                      title="Anexar foto do resultado (opcional)"
+                      hint="PNG, JPG ou WEBP · até 5 MB"
+                      currentImage={commentPhoto ? apiUrl(commentPhoto) : null}
+                      onUploaded={setCommentPhoto}
+                      onUploadingChange={setCommentPhotoUploading}
+                    />
+                    <Button
+                      type="submit"
+                      className="mt-3 rounded-full"
+                      disabled={!comment.trim() || commentPhotoUploading || commentSubmitting}
+                    >
+                      {commentPhotoUploading
+                        ? "Enviando foto…"
+                        : commentSubmitting
+                          ? "Publicando…"
+                          : "Publicar comentário"}
                     </Button>
                   </form>
                 )}
@@ -584,7 +742,11 @@ function RecipePage() {
                     }}
                     className="h-10 rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary/90"
                   >
-                    {deletingComment ? <LoaderCircle className="animate-spin" /> : <Trash2 width={15} height={15} />}
+                    {deletingComment ? (
+                      <LoaderCircle className="animate-spin" />
+                    ) : (
+                      <Trash2 width={15} height={15} />
+                    )}
                     {deletingComment ? "Excluindo…" : "Sim, excluir"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -605,7 +767,7 @@ function RecipePage() {
               {podeAvaliar && (
                 <Button asChild className="mt-6 w-full rounded-full">
                   <Link to="/receita/$recipeId/avaliar" params={{ recipeId: recipe.id }}>
-                    Avaliar receita
+                    Registrar avaliação
                   </Link>
                 </Button>
               )}

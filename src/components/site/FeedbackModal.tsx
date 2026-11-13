@@ -86,7 +86,12 @@ export function FeedbackModal() {
                 {input.length}/{current.maxLength}
               </p>
               <DialogFooter className="mt-5 gap-2 sm:gap-2">
-                <Button type="button" variant="outline" className="rounded-full" onClick={() => finish()}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => finish()}
+                >
                   Cancelar
                 </Button>
                 <Button type="submit" className="rounded-full" disabled={!input.trim()}>

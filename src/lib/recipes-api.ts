@@ -14,16 +14,23 @@ export type RecipeDto = {
   faixaCusto: string | null;
   origem: string;
   urlFonte: string | null;
+  status?: "APROVADA" | "PENDENTE" | "RECUSADA";
   categoria: { nome: string; slug: string };
   autor: { id?: number; nome: string; nomeUsuario: string } | null;
   estatisticas: {
     totalAvaliacoes: number;
+    totalTestadores: number;
     mediaGeral: number | null;
     taxaSucesso: number | null;
     verificada: boolean;
     criterios?: Partial<Criteria>;
   };
-  ingredientes?: { ingrediente: string; quantidade: number | null; unidadeMedida: string | null; observacao?: string | null }[];
+  ingredientes?: {
+    ingrediente: string;
+    quantidade: number | null;
+    unidadeMedida: string | null;
+    observacao?: string | null;
+  }[];
   passos?: string[];
 };
 
@@ -43,6 +50,7 @@ export function toRecipe(r: RecipeDto): Recipe {
     author: r.autor?.nome ?? "Autor removido",
     authorHandle: r.autor?.nomeUsuario ?? "",
     authorId: r.autor?.id == null ? null : String(r.autor.id),
+    status: r.status,
     image: r.fotoPrincipal ? apiUrl(r.fotoPrincipal) : placeholder,
     hasPhoto: Boolean(r.fotoPrincipal),
     category: r.categoria.nome,
@@ -70,14 +78,15 @@ export function toRecipe(r: RecipeDto): Recipe {
     rating: r.estatisticas.mediaGeral ?? 0,
     reviewsCount: r.estatisticas.totalAvaliacoes,
     successRate: r.estatisticas.taxaSucesso ?? 0,
-    testedCount: r.estatisticas.totalAvaliacoes,
+    testedCount: r.estatisticas.totalTestadores,
     verified: r.estatisticas.verificada,
     timeMinutes: r.tempoPreparo,
     yield: r.rendimento?.trim() || "-",
     summary: r.resumo ?? "",
     ingredients: (r.ingredientes ?? []).flatMap((i, index, list) => {
       const title = getRecipeIngredientSectionTitle(i.observacao);
-      const previousTitle = index > 0 ? getRecipeIngredientSectionTitle(list[index - 1]?.observacao) : null;
+      const previousTitle =
+        index > 0 ? getRecipeIngredientSectionTitle(list[index - 1]?.observacao) : null;
       return [
         ...(title && title !== previousTitle ? [encodeIngredientSection(title)] : []),
         [i.quantidade, i.unidadeMedida, i.ingrediente].filter(Boolean).join(" "),

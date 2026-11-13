@@ -6,7 +6,8 @@ import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { safeRedirect, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
+import { safeRedirect } from "@/lib/safe-redirect";
 import { demoAccounts } from "@/lib/mock-data";
 import heroImage from "@/assets/login-ingredients.jpg";
 

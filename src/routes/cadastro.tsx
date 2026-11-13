@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
 import recipeImage from "@/assets/recipe-1.jpg";
 
 export const Route = createFileRoute("/cadastro")({

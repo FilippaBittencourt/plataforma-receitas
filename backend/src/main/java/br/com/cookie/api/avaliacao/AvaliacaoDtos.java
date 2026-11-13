@@ -3,6 +3,7 @@ package br.com.cookie.api.avaliacao;
 import java.time.Instant;
 
 import br.com.cookie.api.receita.ReceitaDtos.EstatisticasResumo;
+import br.com.cookie.api.usuario.UsuarioDtos.AutorResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -27,10 +28,6 @@ public final class AvaliacaoDtos {
         }
     }
 
-    /**
-     * Avaliação de uma receita testada. O comentário e a foto são opcionais e, se enviados,
-     * viram um comentário público na receita.
-     */
     public record AvaliacaoRequest(
             @NotNull(message = "Conte se a receita deu certo.") Boolean funcionou,
             @NotNull(message = "Dê uma nota para todos os critérios.") @Valid Notas notas,
@@ -42,13 +39,22 @@ public final class AvaliacaoDtos {
             Instant dataAvaliacao, EstatisticasResumo estatisticasDaReceita) {
     }
 
-    public record MinhaAvaliacao(Integer idReceita, String tituloReceita, String fotoReceita, boolean funcionou,
-            Notas notas, double media, Instant dataAvaliacao) {
+    public record AvaliacaoPublica(Long id, AutorResponse autor, boolean funcionou, Notas notas, double media,
+            Instant dataAvaliacao) {
+
+        static AvaliacaoPublica de(Avaliacao a) {
+            return new AvaliacaoPublica(a.getId(), AutorResponse.de(a.getUsuario()), a.isFuncionou(), Notas.de(a),
+                    a.media(), a.getDataAvaliacao());
+        }
+    }
+
+    public record MinhaAvaliacao(Long id, Integer idReceita, String tituloReceita, String fotoReceita,
+            boolean funcionou, Notas notas, double media, Instant dataAvaliacao) {
 
         static MinhaAvaliacao de(Avaliacao a) {
             var r = a.getReceita();
-            return new MinhaAvaliacao(r.getId(), r.getTitulo(), r.getFotoPrincipal(), a.isFuncionou(), Notas.de(a),
-                    a.media(), a.getDataAvaliacao());
+            return new MinhaAvaliacao(a.getId(), r.getId(), r.getTitulo(), r.getFotoPrincipal(), a.isFuncionou(),
+                    Notas.de(a), a.media(), a.getDataAvaliacao());
         }
     }
 }

@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import br.com.cookie.api.comentario.ComentarioDtos.ComentarioRequest;
 import br.com.cookie.api.comentario.ComentarioDtos.ComentarioResponse;
+import br.com.cookie.api.comentario.ComentarioDtos.FotoComunidadeResponse;
 import br.com.cookie.api.comum.Pagina;
 import jakarta.validation.Valid;
 
@@ -31,6 +32,12 @@ public class ComentarioController {
     Pagina<ComentarioResponse> listar(@PathVariable Integer idReceita, @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "10") int tamanho) {
         return comentarios.listar(idReceita, PageRequest.of(Math.max(pagina, 0), Math.clamp(tamanho, 1, 50)));
+    }
+
+    @GetMapping("/api/receitas/{idReceita}/fotos")
+    Pagina<FotoComunidadeResponse> fotos(@PathVariable Integer idReceita,
+            @RequestParam(defaultValue = "0") int pagina, @RequestParam(defaultValue = "24") int tamanho) {
+        return comentarios.fotos(idReceita, PageRequest.of(Math.max(pagina, 0), Math.clamp(tamanho, 1, 50)));
     }
 
     @PostMapping("/api/receitas/{idReceita}/comentarios")

@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
 import { initialsOf, type Recipe } from "@/lib/mock-data";
 import { api } from "@/lib/api";
 import { toRecipe, type RecipeDto } from "@/lib/recipes-api";
@@ -63,17 +63,30 @@ function PublishedRecipeCard({
   item,
   authorName,
 }: {
-  item: { id: string; title: string; status: string; fotoPrincipal?: string | null; recipe?: Recipe };
+  item: {
+    id: string;
+    title: string;
+    status: string;
+    fotoPrincipal?: string | null;
+    recipe?: Recipe;
+  };
   authorName: string;
 }) {
   const recipe = item.recipe;
   const hasPhoto = recipe ? recipe.hasPhoto !== false : Boolean(item.fotoPrincipal);
   const image = recipe?.image ?? (item.fotoPrincipal ? apiUrl(item.fotoPrincipal) : "");
-  const statusLabel = item.status === "RECUSADA" ? "Recusada" : "Publicada";
+  const statusLabel =
+    item.status === "RECUSADA"
+      ? "Recusada"
+      : item.status === "PENDENTE"
+        ? "Em curadoria"
+        : "Publicada";
   const statusColor =
     item.status === "RECUSADA"
       ? "border-destructive/35 bg-card text-destructive"
-      : "border-verified/35 bg-card text-verified";
+      : item.status === "PENDENTE"
+        ? "border-caramel/35 bg-card text-caramel"
+        : "border-verified/35 bg-card text-verified";
   const showFooter = Boolean(recipe);
   const content = (
     <>
@@ -114,7 +127,9 @@ function PublishedRecipeCard({
         {recipe ? (
           <div className="flex items-center gap-2">
             <Stars value={recipe.rating} />
-            <span className="text-sm font-semibold text-foreground">{recipe.rating.toFixed(1)}</span>
+            <span className="text-sm font-semibold text-foreground">
+              {recipe.rating.toFixed(1)}
+            </span>
             <span className="text-sm text-muted-foreground">({recipe.reviewsCount})</span>
           </div>
         ) : null}
@@ -136,7 +151,8 @@ function PublishedRecipeCard({
       </div>
     </>
   );
-  const className = "group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-lifted";
+  const className =
+    "group flex h-full flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-lifted";
   return recipe ? (
     <Link to="/receita/$recipeId" params={{ recipeId: recipe.id }} className={className}>
       {content}
@@ -164,13 +180,6 @@ function Profile() {
       .then(async ([myRecipes, reviews]) => {
         const recipesWithDetails = await Promise.all(
           myRecipes.map(async (r) => {
-            if (r.status !== "APROVADA")
-              return {
-                id: String(r.id),
-                title: r.titulo,
-                status: r.status,
-                fotoPrincipal: r.fotoPrincipal,
-              };
             try {
               return {
                 id: String(r.id),
@@ -200,7 +209,11 @@ function Profile() {
         );
         if (active) {
           setPublished(recipesWithDetails);
-          setTested(reviewed.filter((r): r is Recipe => Boolean(r)));
+          const uniqueRecipes = new Map<string, Recipe>();
+          reviewed.forEach((r) => {
+            if (r && !uniqueRecipes.has(r.id)) uniqueRecipes.set(r.id, r);
+          });
+          setTested([...uniqueRecipes.values()]);
         }
       })
       .catch((e) => {
@@ -346,7 +359,7 @@ function Profile() {
             <EmptyTab
               action={
                 <Button asChild size="sm" className="mt-4 rounded-full">
-                  <Link to="/publicar" search={{ editar: undefined }}>
+                  <Link to="/publicar">
                     <Plus width={14} height={14} /> Publicar receita
                   </Link>
                 </Button>

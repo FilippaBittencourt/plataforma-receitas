@@ -49,8 +49,15 @@ public final class ReceitaDtos {
     public record IndicacaoRequest(
             @NotBlank(message = "Cole o link da receita.") @Size(max = 1000) @Pattern(regexp = "^https?://\\S+$", message = "Cole um link completo, começando com https://") String urlFonte,
             @NotBlank(message = "Informe o título da receita.") @Size(min = 3, max = 200, message = "Use de 3 a 200 caracteres.") String titulo,
+            @Size(max = 2000) String resumo,
             @NotBlank(message = "Escolha uma categoria.") String categoria,
-            @Size(max = 2000) String motivo) {
+            @NotNull(message = "Informe o tempo em minutos.") @Positive(message = "Informe o tempo em minutos.") @Max(value = 10080, message = "O tempo máximo é de 7 dias.") Integer tempoPreparo,
+            @Size(max = 100) String rendimento,
+            Dificuldade dificuldade,
+            FaixaCusto faixaCusto,
+            @Size(max = 500) String fotoPrincipal,
+            @NotNull(message = "Liste pelo menos 2 ingredientes.") @Size(min = 2, max = 100, message = "Liste de 2 a 100 ingredientes.") List<@Valid @NotNull IngredienteRequest> ingredientes,
+            @NotNull(message = "Descreva pelo menos 1 passo.") @Size(min = 1, max = 100, message = "Descreva de 1 a 100 passos.") List<@NotBlank(message = "O passo não pode ficar vazio.") @Size(max = 2000) String> passos) {
     }
 
     // ---------- Saída ----------
@@ -62,13 +69,13 @@ public final class ReceitaDtos {
         }
     }
 
-    public record EstatisticasResumo(int totalAvaliacoes, BigDecimal mediaGeral, BigDecimal taxaSucesso,
-            boolean verificada) {
+    public record EstatisticasResumo(int totalAvaliacoes, int totalTestadores, BigDecimal mediaGeral,
+            BigDecimal taxaSucesso, boolean verificada) {
 
         public static EstatisticasResumo de(ReceitaEstatistica e) {
-            return e == null ? new EstatisticasResumo(0, null, null, false)
-                    : new EstatisticasResumo(e.getTotalAvaliacoes(), e.getMediaGeral(), e.getTaxaSucesso(),
-                            Boolean.TRUE.equals(e.getVerificada()));
+            return e == null ? new EstatisticasResumo(0, 0, null, null, false)
+                    : new EstatisticasResumo(e.getTotalAvaliacoes(), e.getTotalTestadores(), e.getMediaGeral(),
+                            e.getTaxaSucesso(), Boolean.TRUE.equals(e.getVerificada()));
         }
     }
 
@@ -76,15 +83,16 @@ public final class ReceitaDtos {
             BigDecimal resultado) {
     }
 
-    public record EstatisticasDetalhe(int totalAvaliacoes, int totalSucesso, BigDecimal mediaGeral,
-            BigDecimal taxaSucesso, boolean verificada, Criterios criterios) {
+    public record EstatisticasDetalhe(int totalAvaliacoes, int totalSucesso, int totalTestadores,
+            BigDecimal mediaGeral, BigDecimal taxaSucesso, boolean verificada, Criterios criterios) {
 
         static EstatisticasDetalhe de(ReceitaEstatistica e) {
             if (e == null) {
-                return new EstatisticasDetalhe(0, 0, null, null, false, new Criterios(null, null, null, null, null));
+                return new EstatisticasDetalhe(0, 0, 0, null, null, false,
+                        new Criterios(null, null, null, null, null));
             }
-            return new EstatisticasDetalhe(e.getTotalAvaliacoes(), e.getTotalSucesso(), e.getMediaGeral(),
-                    e.getTaxaSucesso(), Boolean.TRUE.equals(e.getVerificada()),
+            return new EstatisticasDetalhe(e.getTotalAvaliacoes(), e.getTotalSucesso(), e.getTotalTestadores(),
+                    e.getMediaGeral(), e.getTaxaSucesso(), Boolean.TRUE.equals(e.getVerificada()),
                     new Criterios(e.getMediaMedidas(), e.getMediaTempo(), e.getMediaRendimento(),
                             e.getMediaClareza(), e.getMediaResultado()));
         }

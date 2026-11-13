@@ -24,6 +24,7 @@ export type Recipe = {
   author: string;
   authorHandle: string;
   authorId?: string | null;
+  status?: "APROVADA" | "PENDENTE" | "RECUSADA";
   image: string;
   hasPhoto?: boolean;
   category: string;

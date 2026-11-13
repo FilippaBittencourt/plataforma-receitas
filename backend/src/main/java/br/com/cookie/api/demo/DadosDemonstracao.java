@@ -82,6 +82,7 @@ public class DadosDemonstracao implements ApplicationRunner {
         criarSeAusente(receitaCroissant(autora));
         criarSeAusente(receitaCarbonara(autora));
         criarSeAusente(receitaMoscowMule(autora));
+        criarSeAusente(receitaPaoSourdough(autora));
     }
 
     private void criarSeAusente(Receita receita) {
@@ -164,6 +165,24 @@ public class DadosDemonstracao implements ApplicationRunner {
                         "Adicione a vodka e o suco de limão e mexa brevemente.",
                         "Complete com ginger beer gelada e misture com delicadeza para preservar a carbonatação.",
                         "Guarneça com uma fatia de limão e sirva imediatamente."));
+    }
+
+    private Receita receitaPaoSourdough(Usuario autora) {
+        return receita(autora, "Pão sourdough", "paes", "/demo/pao-sourdough.jpg", 1080,
+                "1 pão de aproximadamente 800 g", Dificuldade.DIFICIL,
+                "Pão de fermentação natural com casca crocante, miolo aberto e fermentação lenta na geladeira. Use fermento natural ativo, no pico de crescimento.",
+                List.of(item("farinha de trigo forte", "500", "g", null),
+                        item("água", "350", "ml", "em temperatura ambiente"),
+                        item("fermento natural", "100", "g", "ativo e alimentado, com 100% de hidratação"),
+                        item("sal", "10", "g", null)),
+                List.of("Misture a farinha com a água até não restarem partes secas. Cubra e deixe descansar por 30 a 45 minutos.",
+                        "Junte o fermento natural e aperte a massa com os dedos até incorporar. Descanse por 20 minutos, adicione o sal e dobre a massa até distribuí-lo por igual.",
+                        "Deixe fermentar em recipiente coberto por 4 a 6 horas, em local ameno. Nas primeiras 2 horas, faça 4 séries de dobras, com 30 minutos de intervalo. Depois, deixe crescer até a massa aumentar cerca de 40% e mostrar bolhas nas laterais.",
+                        "Vire a massa sobre a bancada levemente enfarinhada, faça uma pré-modelagem e deixe descansar por 20 minutos. Modele em formato redondo ou oval, criando tensão na superfície.",
+                        "Coloque a massa com a emenda para cima em um cesto de fermentação enfarinhado. Cubra e leve à geladeira por 8 a 14 horas.",
+                        "Aqueça o forno a 250 °C com uma panela de ferro ou Dutch oven com tampa por pelo menos 45 minutos. Vire a massa sobre papel-manteiga, faça um corte de aproximadamente 1 cm na superfície e transfira com cuidado para a panela quente.",
+                        "Asse com a panela tampada por 20 minutos. Retire a tampa, reduza o forno para 230 °C e asse por mais 20 a 25 minutos, até a casca ficar bem dourada.",
+                        "Retire o pão da panela e deixe esfriar sobre uma grade por pelo menos 1 hora antes de cortar."));
     }
 
     private Usuario usuario(String nome, String nomeUsuario, String email, String bio) {

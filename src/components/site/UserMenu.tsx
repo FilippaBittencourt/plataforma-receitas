@@ -12,7 +12,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
+import { useSignOut } from "./useSignOut";
 import { initialsOf, type Account } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api";
@@ -26,16 +27,6 @@ export function UserAvatar({ user, className }: { user: Account; className?: str
       </AvatarFallback>
     </Avatar>
   );
-}
-
-export function useSignOut() {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-  // Sai da página antes de limpar a sessão; senão uma página protegida manda para o login.
-  return async () => {
-    await navigate({ to: "/" });
-    logout();
-  };
 }
 
 export function UserMenu({ user }: { user: Account }) {
@@ -68,7 +59,7 @@ export function UserMenu({ user }: { user: Account }) {
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
-          <Link to="/publicar" search={{ editar: undefined }}>
+          <Link to="/publicar">
             <Plus width={16} height={16} /> Publicar receita
           </Link>
         </DropdownMenuItem>

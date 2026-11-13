@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
 import type { Account } from "@/lib/mock-data";
 import { api, apiUrl } from "@/lib/api";
 import { PhotoPicker } from "@/components/site/PhotoPicker";

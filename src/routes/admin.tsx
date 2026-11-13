@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { toast } from "@/lib/feedback";
@@ -100,6 +100,17 @@ function Moderation() {
   useEffect(() => {
     void reload();
   }, [reload]);
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void reload();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [reload]);
 
   const decideRecipe = async (id: number, approved: boolean) => {
     try {
@@ -178,7 +189,7 @@ function Moderation() {
         defaultValue="fila"
         className="mt-10"
         onValueChange={(tab) => {
-          if (tab === "usuarios") void reload();
+          if (tab === "fila" || tab === "usuarios") void reload();
         }}
       >
         <TabsList className="rounded-full bg-secondary p-1">
@@ -219,6 +230,25 @@ function Moderation() {
                         {item.autor?.nomeUsuario ?? "Autor removido"} · {item.categoria.nome} ·{" "}
                         {new Date(item.dataPublicacao).toLocaleDateString("pt-BR")}
                       </p>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                        <Link
+                          to="/receita/$recipeId"
+                          params={{ recipeId: String(item.id) }}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          Revisar receita completa
+                        </Link>
+                        {item.urlFonte && (
+                          <a
+                            href={item.urlFonte}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-muted-foreground hover:underline"
+                          >
+                            Abrir publicação original
+                          </a>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <DeleteRecipeButton

@@ -80,9 +80,10 @@ public class ReceitaService {
         String url = validarLink(req.urlFonte());
         var receita = new Receita(Origem.EXTERNA, usuarios.ativo(jwt));
         receita.setUrlFonte(url);
-        receita.setTitulo(req.titulo().trim());
-        receita.setResumo(vazioParaNulo(req.motivo()));
-        receita.setCategoria(categoria(req.categoria()));
+        preencher(receita, new ReceitaRequest(req.titulo(), req.resumo(), req.categoria(), req.tempoPreparo(),
+                req.rendimento(), req.dificuldade(), req.faixaCusto(), req.fotoPrincipal(), req.ingredientes(),
+                req.passos()));
+        receita.moderar(StatusReceita.PENDENTE);
         return ReceitaDetalhe.de(receitas.save(receita));
     }
 

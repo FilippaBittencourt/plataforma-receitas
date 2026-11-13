@@ -3,7 +3,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
 import type { Role } from "@/lib/mock-data";
 
 export function RequireAuth({ children, role }: { children: ReactNode; role?: Role }) {

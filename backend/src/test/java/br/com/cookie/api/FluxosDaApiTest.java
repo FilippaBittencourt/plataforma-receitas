@@ -53,27 +53,19 @@ class FluxosDaApiTest extends ApiTestBase {
     }
 
     @Test
-    void receitaNovaSoApareceDepoisDaCuradoria() throws Exception {
+    void receitaNovaFicaPublicaImediatamente() throws Exception {
         String autor = novoUsuario();
-        String moderador = novoModerador();
         Integer id = criarReceita(autor, "Bolo de cenoura curadoria");
 
-        mvc.perform(get("/api/receitas/" + id)).andExpect(status().isNotFound());
-        mvc.perform(comToken(get("/api/receitas/" + id), autor))
+        mvc.perform(get("/api/receitas/" + id))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.status").value("APROVADA"))
                 .andExpect(jsonPath("$.ingredientes.length()").value(3))
                 .andExpect(jsonPath("$.ingredientes[2].ingrediente").value("açúcar"))
                 .andExpect(jsonPath("$.ingredientes[2].ordem").value(3))
                 .andExpect(jsonPath("$.passos[1]").value("Asse a 180 °C por 40 minutos."));
         mvc.perform(get("/api/receitas").param("q", "cenoura curadoria"))
-                .andExpect(jsonPath("$.total").value(0));
-
-        mvc.perform(comToken(get("/api/moderacao/receitas"), moderador))
-                .andExpect(jsonPath("$[*].id", hasItem(id)));
-        aprovar(moderador, id);
-
-        mvc.perform(get("/api/receitas/" + id)).andExpect(status().isOk());
+                .andExpect(jsonPath("$.total").value(1));
         mvc.perform(get("/api/receitas").param("q", "CENOURA curadoria"))
                 .andExpect(jsonPath("$.itens[0].id").value(id));
         mvc.perform(get("/api/receitas").param("ingrediente", "cenoura").param("categoria", "doces"))
@@ -81,54 +73,89 @@ class FluxosDaApiTest extends ApiTestBase {
     }
 
     @Test
-    void editarReceitaAprovadaVoltaParaACuradoria() throws Exception {
+    void editarReceitaAprovadaContinuaPublica() throws Exception {
         String autor = novoUsuario();
         Integer id = criarReceita(autor, "Receita para editar");
-        aprovar(novoModerador(), id);
 
         mvc.perform(comToken(json(put("/api/receitas/" + id), receitaJson("Receita editada")), novoUsuario()))
                 .andExpect(status().isForbidden());
         mvc.perform(comToken(json(put("/api/receitas/" + id), receitaJson("Receita editada")), autor))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.titulo").value("Receita editada"))
-                .andExpect(jsonPath("$.status").value("PENDENTE"));
+                .andExpect(jsonPath("$.status").value("APROVADA"));
+        mvc.perform(get("/api/receitas/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.titulo").value("Receita editada"));
     }
 
     @Test
-    void avaliacaoUmaPorPessoaComRegrasDeNota() throws Exception {
+    void cadaTesteCriaUmaAvaliacaoEComentarioPermaneceIndependente() throws Exception {
         String autor = novoUsuario();
         Integer id = criarReceita(autor, "Receita para avaliar");
         aprovar(novoModerador(), id);
         String pessoa = novoUsuario();
 
-        mvc.perform(comToken(json(put("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 5)), autor))
+        mvc.perform(comToken(json(post("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 5)), autor))
                 .andExpect(status().isForbidden());
-        mvc.perform(comToken(json(put("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 6)), pessoa))
+        mvc.perform(comToken(json(post("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 6)), pessoa))
                 .andExpect(status().isBadRequest());
-        mvc.perform(comToken(json(put("/api/receitas/" + id + "/avaliacao"), """
+        mvc.perform(comToken(json(post("/api/receitas/" + id + "/avaliacao"), """
                 {"funcionou": true}
                 """), pessoa))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.campos.notas").value("Dê uma nota para todos os critérios."));
 
-        mvc.perform(comToken(json(put("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 5)), pessoa))
+        mvc.perform(comToken(json(post("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 5)), pessoa))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.estatisticasDaReceita.totalAvaliacoes").value(1));
-        // Avaliar de novo substitui a avaliação anterior em vez de duplicar.
-        mvc.perform(comToken(json(put("/api/receitas/" + id + "/avaliacao"), """
-                {"funcionou": false, "notas": {"medidas": 2, "tempo": 2, "rendimento": 2, "clareza": 2, "resultado": 2},
-                 "comentario": "Ficou seco, tirei 5 minutos de forno na segunda vez."}
-                """), pessoa))
-                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estatisticasDaReceita.totalAvaliacoes").value(1))
-                .andExpect(jsonPath("$.estatisticasDaReceita.mediaGeral").value(2.0))
-                .andExpect(jsonPath("$.estatisticasDaReceita.taxaSucesso").value(0.0));
+                .andExpect(jsonPath("$.estatisticasDaReceita.totalTestadores").value(1));
+        mvc.perform(comToken(json(post("/api/receitas/" + id + "/avaliacao"), """
+                {"funcionou": false, "notas": {"medidas": 2, "tempo": 2, "rendimento": 2, "clareza": 2, "resultado": 2},
+                 "comentario": "Ficou seco na primeira tentativa.",
+                 "fotoResultado": "/uploads/resultado-teste.png"}
+                """), pessoa))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.estatisticasDaReceita.totalAvaliacoes").value(2))
+                .andExpect(jsonPath("$.estatisticasDaReceita.totalTestadores").value(1))
+                .andExpect(jsonPath("$.estatisticasDaReceita.mediaGeral").value(3.5))
+                .andExpect(jsonPath("$.estatisticasDaReceita.taxaSucesso").value(50.0));
 
         mvc.perform(get("/api/receitas/" + id + "/comentarios"))
-                .andExpect(jsonPath("$.itens[0].texto").value(startsWith("Ficou seco")));
+                .andExpect(jsonPath("$.itens.length()").value(1))
+                .andExpect(jsonPath("$.itens[0].texto").value("Ficou seco na primeira tentativa."))
+                .andExpect(jsonPath("$.itens[0].fotoResultado").value("/uploads/resultado-teste.png"));
+        mvc.perform(get("/api/receitas/" + id + "/fotos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.itens[0].fotoResultado").value("/uploads/resultado-teste.png"));
+        mvc.perform(comToken(json(post("/api/receitas/" + id + "/comentarios"),
+                "{\"texto\":\"O segundo teste ficou melhor.\",\"fotoResultado\":\"/uploads/comentario.png\"}"),
+                pessoa))
+                .andExpect(status().isCreated());
+        mvc.perform(get("/api/receitas/" + id + "/comentarios"))
+                .andExpect(jsonPath("$.itens.length()").value(2))
+                .andExpect(jsonPath("$.itens[0].texto").value("O segundo teste ficou melhor."))
+                .andExpect(jsonPath("$.itens[1].texto").value("Ficou seco na primeira tentativa."));
+        mvc.perform(get("/api/receitas/" + id + "/fotos?tamanho=1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.totalPaginas").value(2))
+                .andExpect(jsonPath("$.itens[0].fotoResultado").value("/uploads/comentario.png"));
+        mvc.perform(get("/api/receitas/" + id + "/fotos?tamanho=1&pagina=1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens[0].fotoResultado").value("/uploads/resultado-teste.png"));
+        mvc.perform(get("/api/receitas/" + id + "/avaliacoes"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].funcionou").value(false))
+                .andExpect(jsonPath("$[1].funcionou").value(true));
+        mvc.perform(comToken(get("/api/receitas/" + id + "/avaliacao"), pessoa))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.funcionou").value(false));
         mvc.perform(comToken(get("/api/me/avaliacoes"), pessoa))
                 .andExpect(jsonPath("$[0].idReceita").value(id))
-                .andExpect(jsonPath("$[0].funcionou").value(false));
+                .andExpect(jsonPath("$[0].funcionou").value(false))
+                .andExpect(jsonPath("$[1].idReceita").value(id));
     }
 
     @Test
@@ -137,16 +164,17 @@ class FluxosDaApiTest extends ApiTestBase {
         aprovar(novoModerador(), id);
 
         for (int i = 0; i < 9; i++) {
-            mvc.perform(comToken(json(put("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 5)),
+            mvc.perform(comToken(json(post("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 5)),
                     novoUsuario())).andExpect(status().isCreated());
         }
         mvc.perform(get("/api/receitas/" + id)).andExpect(jsonPath("$.estatisticas.verificada").value(false));
 
-        mvc.perform(comToken(json(put("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 4)),
+        mvc.perform(comToken(json(post("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(true, 4)),
                 novoUsuario())).andExpect(status().isCreated());
         mvc.perform(get("/api/receitas/" + id))
                 .andExpect(jsonPath("$.estatisticas.verificada").value(true))
                 .andExpect(jsonPath("$.estatisticas.totalAvaliacoes").value(10))
+                .andExpect(jsonPath("$.estatisticas.totalTestadores").value(10))
                 .andExpect(jsonPath("$.estatisticas.taxaSucesso").value(100.0))
                 .andExpect(jsonPath("$.estatisticas.criterios.medidas").value(4.9));
 
@@ -154,6 +182,46 @@ class FluxosDaApiTest extends ApiTestBase {
                 .andExpect(jsonPath("$.itens[*].id", hasItem(id)));
         mvc.perform(get("/api/receitas/ranking"))
                 .andExpect(jsonPath("$[0].estatisticas.verificada").value(true));
+    }
+
+    @Test
+    void seloRespeitaOsLimitesDeMediaESucesso() throws Exception {
+        Integer idLimiteExato = criarReceita(novoUsuario(), "Receita no limite exato");
+        for (int i = 0; i < 10; i++) {
+            mvc.perform(comToken(json(post("/api/receitas/" + idLimiteExato + "/avaliacao"),
+                    avaliacaoJson(i < 8, 4)), novoUsuario()))
+                    .andExpect(status().isCreated());
+        }
+        mvc.perform(get("/api/receitas/" + idLimiteExato))
+                .andExpect(jsonPath("$.estatisticas.mediaGeral").value(4.0))
+                .andExpect(jsonPath("$.estatisticas.taxaSucesso").value(80.0))
+                .andExpect(jsonPath("$.estatisticas.verificada").value(true));
+
+        Integer idSucessoAbaixoDoLimite = criarReceita(novoUsuario(), "Receita com sucesso abaixo do limite");
+        for (int i = 0; i < 10; i++) {
+            mvc.perform(comToken(json(post("/api/receitas/" + idSucessoAbaixoDoLimite + "/avaliacao"),
+                    avaliacaoJson(i < 7, 5)), novoUsuario()))
+                    .andExpect(status().isCreated());
+        }
+        mvc.perform(get("/api/receitas/" + idSucessoAbaixoDoLimite))
+                .andExpect(jsonPath("$.estatisticas.mediaGeral").value(5.0))
+                .andExpect(jsonPath("$.estatisticas.taxaSucesso").value(70.0))
+                .andExpect(jsonPath("$.estatisticas.verificada").value(false));
+    }
+
+    @Test
+    void variasTentativasDaMesmaPessoaNaoAtingemLimiteDeTestadores() throws Exception {
+        Integer id = criarReceita(novoUsuario(), "Receita com várias tentativas da mesma pessoa");
+        String pessoa = novoUsuario();
+        for (int i = 0; i < 10; i++) {
+            mvc.perform(comToken(json(post("/api/receitas/" + id + "/avaliacao"), avaliacaoJson(i < 8, 5)), pessoa))
+                    .andExpect(status().isCreated());
+        }
+        mvc.perform(get("/api/receitas/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estatisticas.totalAvaliacoes").value(10))
+                .andExpect(jsonPath("$.estatisticas.totalTestadores").value(1))
+                .andExpect(jsonPath("$.estatisticas.verificada").value(false));
     }
 
     @Test
@@ -211,13 +279,29 @@ class FluxosDaApiTest extends ApiTestBase {
                 {"urlFonte": "javascript:alert(1)", "titulo": "Pão de queijo", "categoria": "paes"}
                 """), token))
                 .andExpect(status().isBadRequest());
-        mvc.perform(comToken(json(post("/api/receitas/indicacoes"), """
+        String corpo = mvc.perform(comToken(json(post("/api/receitas/indicacoes"), """
                 {"urlFonte": "https://blogdacozinha.com/pao-de-queijo", "titulo": "Pão de queijo",
-                 "categoria": "paes", "motivo": "As medidas bateram."}
+                 "resumo": "Uma receita simples e bem testada.", "categoria": "paes",
+                 "tempoPreparo": 45, "rendimento": "30 unidades", "dificuldade": "MEDIO",
+                 "faixaCusto": "BAIXO", "ingredientes": [
+                   {"nome": "polvilho", "quantidade": 500, "unidadeMedida": "g"},
+                   {"nome": "queijo", "quantidade": 200, "unidadeMedida": "g"}
+                 ], "passos": ["Misture os ingredientes.", "Asse até dourar."]}
                 """), token))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.origem").value("EXTERNA"))
-                .andExpect(jsonPath("$.status").value("PENDENTE"));
+                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.urlFonte").value("https://blogdacozinha.com/pao-de-queijo"))
+                .andExpect(jsonPath("$.resumo").value("Uma receita simples e bem testada."))
+                .andExpect(jsonPath("$.tempoPreparo").value(45))
+                .andExpect(jsonPath("$.rendimento").value("30 unidades"))
+                .andExpect(jsonPath("$.ingredientes.length()").value(2))
+                .andExpect(jsonPath("$.passos.length()").value(2))
+                .andReturn().getResponse().getContentAsString();
+        Integer id = JsonPath.read(corpo, "$.id");
+        mvc.perform(comToken(get("/api/moderacao/receitas"), novoModerador()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", hasItem(id)));
     }
 
     @Test

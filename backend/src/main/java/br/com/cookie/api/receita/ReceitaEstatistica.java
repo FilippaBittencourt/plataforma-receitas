@@ -25,6 +25,9 @@ public class ReceitaEstatistica {
     @Column(name = "total_sucesso")
     private Integer totalSucesso;
 
+    @Column(name = "total_testadores")
+    private Integer totalTestadores;
+
     @Column(name = "media_medidas")
     private BigDecimal mediaMedidas;
 
@@ -63,6 +66,10 @@ public class ReceitaEstatistica {
 
     public Integer getTotalSucesso() {
         return totalSucesso;
+    }
+
+    public Integer getTotalTestadores() {
+        return totalTestadores;
     }
 
     public BigDecimal getMediaMedidas() {

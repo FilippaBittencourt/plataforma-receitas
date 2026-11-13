@@ -2,7 +2,8 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut, Menu, Plus, Search } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "./Logo";
-import { UserAvatar, UserMenu, useSignOut } from "./UserMenu";
+import { UserAvatar, UserMenu } from "./UserMenu";
+import { useSignOut } from "./useSignOut";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -13,7 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
 
 const nav = [
   { to: "/buscar", label: "Explorar" },
@@ -83,7 +84,7 @@ export function Header() {
           ) : user ? (
             <>
               <Button asChild size="sm" className="hidden rounded-full sm:inline-flex">
-                <Link to="/publicar" search={{ editar: undefined }}>
+                <Link to="/publicar">
                   <Plus width={16} height={16} /> Nova receita
                 </Link>
               </Button>

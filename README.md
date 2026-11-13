@@ -1,47 +1,43 @@
-# Plataforma de Receitas 🍪
+# Mums!
 
-**Em meio a milhares de receitas, mostramos quais realmente funcionam.**
+**Receitas testadas por quem realmente cozinhou.**
 
-O projeto consiste em uma plataforma de receitas focada em **confiabilidade**.
+Uma receita pode parecer ótima na foto e falhar na hora do preparo. O Mums! reúne receitas, avaliações e fotos de resultados reais para ajudar a escolher o que vale cozinhar.
 
-A proposta do projeto é ir além do simples compartilhamento de receitas, permitindo que os usuários avaliem se uma receita realmente funciona com base em experiências reais da comunidade.
+## Como funciona
 
-As avaliações consideram critérios como precisão das medidas, tempo de preparo, rendimento, clareza das instruções e resultado final.
+- **Explore receitas** por nome, categoria, ingrediente ou avaliação da comunidade.
+- **Publique uma receita sua** ou traga uma de outra plataforma com o link da fonte. Receitas próprias são publicadas na hora; indicações externas passam pela curadoria.
+- **Conte como foi o preparo.** Cada avaliação registra se a receita funcionou e dá notas para medidas, tempo, rendimento, clareza e resultado. Você também pode deixar um comentário e uma foto. Se cozinhar a mesma receita outra vez, registra uma nova avaliação.
+
+As fotos enviadas aparecem na seção **Fotos da comunidade** da receita. O selo **Receita Verificada** exige avaliações de pelo menos 10 pessoas diferentes, nota média de 4 ou mais e sucesso em pelo menos 80% dos preparos avaliados.
+
+## Rodar no computador
+
+Você vai precisar de Node.js, npm, Java 21 e Docker Desktop. Abra dois terminais na pasta do projeto.
+
+No primeiro, inicie a API e o banco de dados:
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+No segundo, inicie o site:
+
+```bash
+npm ci
+npm run dev
+```
+
+A API usa `http://localhost:8080` e o Vite mostra no terminal o endereço do site, normalmente `http://localhost:5173`. Se a API estiver em outro endereço, configure `VITE_API_URL` no ambiente do front.
+
+## Tecnologias
+
+O front usa React, TypeScript, TanStack Start e Tailwind CSS. A API foi feita com Java 21, Spring Boot e PostgreSQL; o Flyway cuida das mudanças no banco.
+
+Os comandos de teste, as variáveis de ambiente e as rotas da API estão no [README do backend](backend/README.md).
 
 ## Sobre o projeto
 
-Encontrar receitas na internet é fácil, mas nem sempre elas apresentam medidas corretas, tempos realistas ou instruções claras.
-
-A plataforma busca centralizar essas experiências em um único lugar, permitindo que os usuários descubram quais receitas são mais confiáveis antes de investir tempo e ingredientes no preparo.
-
-Além de consultar receitas, os usuários podem publicar suas próprias receitas, indicar receitas encontradas em outras plataformas e compartilhar suas experiências após testá-las.
-
-## Principais funcionalidades
-
-- Cadastro e autenticação de usuários;
-- Pesquisa e filtragem de receitas;
-- Visualização detalhada das receitas;
-- Publicação de receitas próprias;
-- Indicação de receitas externas por meio de links;
-- Avaliação de receitas por critérios:
-  - precisão das medidas;
-  - tempo de preparo;
-  - rendimento;
-  - clareza das instruções;
-  - resultado final;
-- Comentários sobre as receitas;
-- Envio opcional de fotos do resultado;
-- Ranking das receitas mais bem avaliadas;
-- Identificação de receitas verificadas;
-- Perfil do usuário com histórico de receitas e avaliações;
-- Moderação de conteúdos e usuários.
-
-## Receita Verificada
-
-As receitas podem receber o destaque **Receita Verificada** com base nas avaliações e experiências registradas pela comunidade.
-
-O objetivo é facilitar a identificação de receitas que apresentem resultados consistentes e confiáveis.
-
-## Projeto acadêmico
-
-Este projeto está sendo desenvolvido como parte da disciplina de **Projeto de Sistemas**, do curso de **Análise e Desenvolvimento de Sistemas**.
+O Mums! é um trabalho da disciplina de **Projeto de Sistemas** do curso de **Análise e Desenvolvimento de Sistemas**.

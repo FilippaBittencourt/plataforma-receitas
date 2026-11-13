@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Bot, ChefHat, LoaderCircle, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/use-auth";
 import { api } from "@/lib/api";
 import {
   formatRecipeIngredientForAssistant,
@@ -17,14 +17,28 @@ type ChatMessage = { role: "user" | "assistant"; text: string };
 function inlineMarkdown(text: string): ReactNode[] {
   const parts = text.split(/(\*\*.+?\*\*|__.+?__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g);
   return parts.map((part, index) => {
-    if ((part.startsWith("**") && part.endsWith("**")) || (part.startsWith("__") && part.endsWith("__"))) {
-      return <strong key={index} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+    if (
+      (part.startsWith("**") && part.endsWith("**")) ||
+      (part.startsWith("__") && part.endsWith("__"))
+    ) {
+      return (
+        <strong key={index} className="font-semibold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
     }
-    if ((part.startsWith("*") && part.endsWith("*")) || (part.startsWith("_") && part.endsWith("_"))) {
+    if (
+      (part.startsWith("*") && part.endsWith("*")) ||
+      (part.startsWith("_") && part.endsWith("_"))
+    ) {
       return <em key={index}>{part.slice(1, -1)}</em>;
     }
     if (part.startsWith("`") && part.endsWith("`")) {
-      return <code key={index} className="rounded bg-background/70 px-1 py-0.5 text-[0.9em]">{part.slice(1, -1)}</code>;
+      return (
+        <code key={index} className="rounded bg-background/70 px-1 py-0.5 text-[0.9em]">
+          {part.slice(1, -1)}
+        </code>
+      );
     }
     return <span key={index}>{part}</span>;
   });
@@ -53,7 +67,11 @@ function AssistantMarkdown({ text }: { text: string }) {
         key={`list-${blocks.length}`}
         className={`space-y-1.5 pl-5 ${list.ordered ? "list-decimal" : "list-disc"}`}
       >
-        {list.items.map((item, index) => <li key={index} className="pl-0.5">{inlineMarkdown(item)}</li>)}
+        {list.items.map((item, index) => (
+          <li key={index} className="pl-0.5">
+            {inlineMarkdown(item)}
+          </li>
+        ))}
       </List>,
     );
     list = null;
@@ -72,8 +90,11 @@ function AssistantMarkdown({ text }: { text: string }) {
       flushParagraph();
       flushList();
       blocks.push(
-        <h3 key={`h-${blocks.length}`} className="text-[1.05em] font-semibold leading-snug text-foreground">
-          {inlineMarkdown(heading[2])}
+        <h3
+          key={`h-${blocks.length}`}
+          className="text-[1.05em] font-semibold leading-snug text-foreground"
+        >
+          {inlineMarkdown(heading[2] ?? "")}
         </h3>,
       );
       continue;
@@ -86,7 +107,7 @@ function AssistantMarkdown({ text }: { text: string }) {
       const ordered = Boolean(orderedItem);
       if (list && list.ordered !== ordered) flushList();
       if (!list) list = { ordered, items: [] };
-      list.items.push((orderedItem ?? unorderedItem)![1]);
+      list.items.push((orderedItem ?? unorderedItem)?.[1] ?? "");
       continue;
     }
 
@@ -150,7 +171,9 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
       });
       setMessages((current) => [...current, { role: "assistant", text: result.resposta }]);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Não foi possível responder agora.");
+      setError(
+        requestError instanceof Error ? requestError.message : "Não foi possível responder agora.",
+      );
     } finally {
       setSending(false);
     }
@@ -180,7 +203,9 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
               <ChefHat width={20} height={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="font-display text-lg font-semibold text-foreground">Assistente de cozinha</h2>
+              <h2 className="font-display text-lg font-semibold text-foreground">
+                Assistente de cozinha
+              </h2>
               <p className="truncate text-xs text-muted-foreground">
                 {recipe ? `Sobre: ${recipe.title}` : "Sugestões e dúvidas culinárias"}
               </p>
@@ -200,7 +225,9 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
           {!user ? (
             <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
               <Bot width={30} height={30} className="text-caramel" />
-              <p className="mt-3 font-semibold text-foreground">Entre para conversar com o assistente</p>
+              <p className="mt-3 font-semibold text-foreground">
+                Entre para conversar com o assistente
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Ele pode sugerir receitas e ajudar com esta receita aberta.
               </p>
@@ -227,7 +254,11 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
                         : "mr-auto rounded-bl-md bg-secondary/70 text-foreground"
                     }`}
                   >
-                    {message.role === "assistant" ? <AssistantMarkdown text={message.text} /> : message.text}
+                    {message.role === "assistant" ? (
+                      <AssistantMarkdown text={message.text} />
+                    ) : (
+                      message.text
+                    )}
                   </div>
                 ))}
                 {sending && (
@@ -237,7 +268,10 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
                   </div>
                 )}
                 {error && (
-                  <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive">
+                  <p
+                    role="alert"
+                    className="rounded-xl bg-destructive/10 px-3 py-2 text-xs leading-relaxed text-destructive"
+                  >
                     {error}
                   </p>
                 )}
@@ -248,7 +282,9 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
                   value={question}
                   onChange={(event) => setQuestion(event.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={recipe ? "Pergunte sobre esta receita…" : "O que você quer cozinhar?"}
+                  placeholder={
+                    recipe ? "Pergunte sobre esta receita…" : "O que você quer cozinhar?"
+                  }
                   aria-label="Sua pergunta para o assistente"
                   maxLength={1000}
                   rows={1}
@@ -262,11 +298,16 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
                   disabled={!question.trim() || sending}
                   className="h-10 w-10 shrink-0 rounded-full"
                 >
-                  {sending ? <LoaderCircle className="animate-spin" /> : <Send width={16} height={16} />}
+                  {sending ? (
+                    <LoaderCircle className="animate-spin" />
+                  ) : (
+                    <Send width={16} height={16} />
+                  )}
                 </Button>
               </form>
               <p className="px-4 pb-2.5 text-center text-[10px] text-muted-foreground">
-                Sugestões culinárias geradas por IA. Confira medidas e preparo conforme seus ingredientes.
+                Sugestões culinárias geradas por IA. Confira medidas e preparo conforme seus
+                ingredientes.
               </p>
             </>
           )}

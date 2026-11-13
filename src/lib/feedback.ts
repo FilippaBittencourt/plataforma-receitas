@@ -26,10 +26,20 @@ function dispatch(request: FeedbackRequest) {
 
 export const toast = {
   success(title: string, options?: { description?: string }) {
-    dispatch({ kind: "notice", tone: "success", title, description: options?.description });
+    dispatch({
+      kind: "notice",
+      tone: "success",
+      title,
+      ...(options?.description === undefined ? {} : { description: options.description }),
+    });
   },
   error(title: string, options?: { description?: string }) {
-    dispatch({ kind: "notice", tone: "error", title, description: options?.description });
+    dispatch({
+      kind: "notice",
+      tone: "error",
+      title,
+      ...(options?.description === undefined ? {} : { description: options.description }),
+    });
   },
 };
 
@@ -45,7 +55,7 @@ export function requestText(options: {
       kind: "input",
       title: options.title,
       description: options.description,
-      placeholder: options.placeholder,
+      ...(options.placeholder === undefined ? {} : { placeholder: options.placeholder }),
       maxLength: options.maxLength ?? 500,
       confirmLabel: options.confirmLabel ?? "Enviar",
       resolve,
