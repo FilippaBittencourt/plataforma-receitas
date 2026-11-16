@@ -170,6 +170,7 @@ function Profile() {
   const [tested, setTested] = useState<Recipe[]>([]);
   const [error, setError] = useState("");
   useEffect(() => {
+    if (user?.role === "moderador") return;
     let active = true;
     Promise.all([
       api<{ id: number; titulo: string; status: string; fotoPrincipal: string | null }[]>(
@@ -222,7 +223,7 @@ function Profile() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [user?.role]);
   if (!user) return null;
 
   return (
@@ -312,30 +313,32 @@ function Profile() {
           </div>
         </section>
       )}
-      {error && (
+      {user.role !== "moderador" && error && (
         <p role="alert" className="mt-4 text-sm text-destructive">
           {error}
         </p>
       )}
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: "Receitas publicadas", value: user.stats.publicadas },
-          { label: "Avaliações enviadas", value: user.stats.avaliacoes },
-          { label: "Receitas testadas", value: user.stats.testadas },
-          { label: "Seguidores", value: user.stats.seguidores.toLocaleString("pt-BR") },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="rounded-2xl border border-border bg-card p-4 text-center shadow-soft"
-          >
-            <p className="font-display text-2xl font-semibold text-foreground">{s.value}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{s.label}</p>
+      {user.role !== "moderador" && (
+        <>
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              { label: "Receitas publicadas", value: user.stats.publicadas },
+              { label: "Avaliações enviadas", value: user.stats.avaliacoes },
+              { label: "Receitas testadas", value: user.stats.testadas },
+              { label: "Seguidores", value: user.stats.seguidores.toLocaleString("pt-BR") },
+            ].map((s) => (
+              <div
+                key={s.label}
+                className="rounded-2xl border border-border bg-card p-4 text-center shadow-soft"
+              >
+                <p className="font-display text-2xl font-semibold text-foreground">{s.value}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{s.label}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      <Tabs defaultValue="publicadas" className="mt-10">
+          <Tabs defaultValue="publicadas" className="mt-10">
         <TabsList className="rounded-full bg-secondary p-1">
           <TabsTrigger value="publicadas" className="rounded-full px-4">
             Publicadas
@@ -357,13 +360,13 @@ function Profile() {
             </div>
           ) : (
             <EmptyTab
-              action={
+              action={user.role === "moderador" ? undefined : (
                 <Button asChild size="sm" className="mt-4 rounded-full">
                   <Link to="/publicar">
                     <Plus width={14} height={14} /> Publicar receita
                   </Link>
                 </Button>
-              }
+              )}
             >
               Você ainda não publicou nenhuma receita.
             </EmptyTab>
@@ -417,7 +420,9 @@ function Profile() {
             </Link>
           ))}
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        </>
+      )}
     </div>
   );
 }

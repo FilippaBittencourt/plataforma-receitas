@@ -6,7 +6,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/use-auth";
 import type { Role } from "@/lib/mock-data";
 
-export function RequireAuth({ children, role }: { children: ReactNode; role?: Role }) {
+export function RequireAuth({
+  children,
+  role,
+  disallowRole,
+}: {
+  children: ReactNode;
+  role?: Role;
+  disallowRole?: Role;
+}) {
   const { ready, user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -46,6 +54,21 @@ export function RequireAuth({ children, role }: { children: ReactNode; role?: Ro
         </p>
         <Button asChild className="mt-6 rounded-full">
           <Link to="/">Voltar para a home</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  if (disallowRole && user.role === disallowRole) {
+    return (
+      <div className="mx-auto max-w-md px-5 py-24 text-center">
+        <Lock width={22} height={22} className="mx-auto text-caramel" />
+        <h1 className="mt-4 text-2xl font-semibold text-foreground">Ação indisponível</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Contas de moderação cuidam da curadoria e não podem publicar, indicar, testar ou avaliar receitas.
+        </p>
+        <Button asChild className="mt-6 rounded-full">
+          <Link to="/admin">Ir para moderação</Link>
         </Button>
       </div>
     );

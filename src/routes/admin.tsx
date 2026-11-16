@@ -265,7 +265,7 @@ function Moderation() {
                       </Button>
                       <Button
                         size="sm"
-                        className="rounded-full"
+                        className="rounded-full bg-verified text-verified-foreground hover:bg-verified/90 focus-visible:ring-verified"
                         onClick={() => void decideRecipe(item.id, true)}
                       >
                         <Check width={14} height={14} /> Aprovar

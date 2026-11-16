@@ -1,5 +1,14 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Check, LogOut, Plus, Settings, ShieldCheck, User, UserPlus, Users } from "lucide-react";
+import {
+  Check,
+  LogOut,
+  Plus,
+  Settings,
+  ShieldCheck,
+  User,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -58,11 +67,13 @@ export function UserMenu({ user }: { user: Account }) {
             <User width={16} height={16} /> Meu perfil
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
-          <Link to="/publicar">
-            <Plus width={16} height={16} /> Publicar receita
-          </Link>
-        </DropdownMenuItem>
+        {user.role !== "moderador" && (
+          <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
+            <Link to="/publicar">
+              <Plus width={16} height={16} /> Publicar receita
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
           <Link to="/configuracoes">
             <Settings width={16} height={16} /> Configurações

@@ -192,7 +192,7 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
   };
 
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
+    <div className="fixed bottom-5 right-5 z-[60] flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
       {open && (
         <section
           aria-label="Assistente de receitas"
@@ -242,7 +242,7 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
                   <div className="rounded-2xl bg-secondary/70 p-3.5 text-sm leading-relaxed text-foreground">
                     {recipe
                       ? `Olá, sou a Mums AI! Estou acompanhando a receita “${recipe.title}”. Posso explicar o preparo, tirar dúvidas e ajudar a substituir ingredientes com as quantidades ajustadas. O que você gostaria de saber?`
-                      : "Olá, sou a Mums AI! Posso sugerir receitas, ajudar você a escolher o que cozinhar e adaptar pratos aos ingredientes que tem em casa. O que gostaria de preparar?"}
+                      : "Olá! Sou a Mums AI, sua assistente de cozinha. Posso ajudar você a encontrar receitas, escolher o que preparar e aproveitar os ingredientes que já tem em casa. O que gostaria de cozinhar hoje?"}
                   </div>
                 )}
                 {messages.map((message, index) => (

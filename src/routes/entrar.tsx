@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/use-auth";
 import { safeRedirect } from "@/lib/safe-redirect";
 import { demoAccounts } from "@/lib/mock-data";
+import { toast } from "@/lib/feedback";
 import heroImage from "@/assets/login-ingredients.jpg";
 
 type EntrarSearch = { redirect?: string; adicionar?: boolean };
@@ -30,7 +31,7 @@ export const Route = createFileRoute("/entrar")({
       { title: "Entrar — Mums!" },
       {
         name: "description",
-        content: "Acesse sua conta para avaliar receitas, salvar favoritas e enviar fotos.",
+        content: "Acesse sua conta para avaliar receitas testadas e compartilhar seus resultados.",
       },
       { property: "og:title", content: "Entrar — Mums!" },
       {
@@ -63,8 +64,9 @@ function EntrarPage() {
       setErrors({ form: result.error });
       return;
     }
-    if (redirect) navigate({ href: redirect, replace: true });
-    else navigate({ to: "/perfil", replace: true });
+    if (redirect) await navigate({ href: redirect, replace: true });
+    else await navigate({ to: "/perfil", replace: true });
+    toast.success(adicionar ? "Conta adicionada" : "Login realizado");
   };
 
   return (

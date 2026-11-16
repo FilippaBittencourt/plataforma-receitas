@@ -18,7 +18,7 @@ type PublicProfile = {
   fotoPerfil: string | null;
   moderador: boolean;
   dataCadastro: string;
-  estatisticas: { receitasPublicadas: number; avaliacoes: number };
+  estatisticas: { receitasPublicadas: number; avaliacoes: number; receitasTestadas: number };
 };
 
 export const Route = createFileRoute("/usuarios/$nomeUsuario")({

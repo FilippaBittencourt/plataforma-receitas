@@ -81,6 +81,7 @@ type DraftIngredient =
     };
 
 type RecipeDraftContent = {
+  origem?: "PROPRIA" | "EXTERNA";
   titulo?: string;
   categoria?: string;
   tempo?: string;
@@ -93,6 +94,30 @@ type RecipeDraftContent = {
   photo?: string | null;
   urlFonte?: string;
 };
+
+type DraftSummary = {
+  id: number;
+  titulo: string;
+  origem?: "PROPRIA" | "EXTERNA";
+  atualizadoEm: string;
+};
+
+async function listDrafts(external: boolean) {
+  const expectedOrigin = external ? "EXTERNA" : "PROPRIA";
+  const drafts = await api<DraftSummary[]>("/api/rascunhos");
+  const classified = await Promise.all(
+    drafts.map(async (draft) => {
+      if (draft.origem) return { ...draft, origem: draft.origem };
+      const detail = await api<{ conteudo: RecipeDraftContent }>(`/api/rascunhos/${draft.id}`);
+      const origin: NonNullable<DraftSummary["origem"]> =
+        detail.conteudo.origem === "EXTERNA" || detail.conteudo.urlFonte?.trim()
+          ? "EXTERNA"
+          : "PROPRIA";
+      return { ...draft, origem: origin };
+    }),
+  );
+  return classified.filter((draft) => draft.origem === expectedOrigin);
+}
 
 function newIngredientBlock(): IngredientEditorBlock {
   return {
@@ -216,7 +241,7 @@ function isTasteUnit(value: string) {
 function PublicarPage() {
   return (
     <Shell>
-      <RequireAuth>
+      <RequireAuth disallowRole="moderador">
         <PublicarForm />
       </RequireAuth>
     </Shell>
@@ -250,10 +275,11 @@ function PublicarForm() {
   stepsRef.current = steps;
   const [errors, setErrors] = useState<Errors>({});
   const [photo, setPhoto] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [resumo, setResumo] = useState("");
   const [rendimento, setRendimento] = useState("");
   const [draftId, setDraftId] = useState<number | null>(null);
-  const [drafts, setDrafts] = useState<{ id: number; titulo: string; atualizadoEm: string }[]>([]);
+  const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [savingDraft, setSavingDraft] = useState(false);
 
   useLayoutEffect(() => {
@@ -369,12 +395,12 @@ function PublicarForm() {
         );
       return;
     }
-    api<{ id: number; titulo: string; atualizadoEm: string }[]>("/api/rascunhos")
+    listDrafts(externa)
       .then(setDrafts)
       .catch((e) =>
         toast.error(e instanceof Error ? e.message : "Não foi possível carregar seus rascunhos."),
       );
-  }, [editar]);
+  }, [editar, externa]);
 
   const aplicarRascunho = (d: { id: number; conteudo: RecipeDraftContent }) => {
     const c = d.conteudo;
@@ -419,6 +445,7 @@ function PublicarForm() {
     setSavingDraft(true);
     try {
       const conteudo = {
+        origem: externa ? "EXTERNA" : "PROPRIA",
         titulo,
         categoria,
         tempo,
@@ -436,7 +463,7 @@ function PublicarForm() {
         { method: draftId ? "PUT" : "POST", body: JSON.stringify({ conteudo }) },
       );
       setDraftId(salvo.id);
-      setDrafts(await api("/api/rascunhos"));
+      setDrafts(await listDrafts(externa));
       toast.success("Rascunho salvo na sua conta");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível salvar o rascunho.");
@@ -458,7 +485,7 @@ function PublicarForm() {
   const deleteDraft = async (id: number) => {
     try {
       await api(`/api/rascunhos/${id}`, { method: "DELETE" });
-      setDrafts(await api("/api/rascunhos"));
+      setDrafts(await listDrafts(externa));
       if (draftId === id) setDraftId(null);
       toast.success("Rascunho excluído");
     } catch (e) {
@@ -468,6 +495,10 @@ function PublicarForm() {
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (photoUploading) {
+      toast.error("Aguarde o envio da foto terminar.");
+      return;
+    }
     const next: Errors = {};
     if (externa) {
       try {
@@ -832,6 +863,7 @@ function PublicarForm() {
             hint="Esta será a foto principal. PNG, JPG ou WEBP até 5 MB."
             currentImage={photo ? apiUrl(photo) : null}
             onUploaded={setPhoto}
+            onUploadingChange={setPhotoUploading}
           />
         </section>
 
@@ -1209,16 +1241,18 @@ function PublicarForm() {
             variant="ghost"
             className="rounded-full"
             onClick={() => void saveDraft()}
-            disabled={savingDraft}
+            disabled={savingDraft || photoUploading}
           >
-            {savingDraft ? "Salvando…" : "Salvar rascunho"}
+            {savingDraft ? "Salvando…" : photoUploading ? "Enviando foto…" : "Salvar rascunho"}
           </Button>
-          <Button type="submit" className="rounded-full px-7">
-            {editar
-              ? "Salvar alterações"
-              : externa
-                ? "Enviar receita para curadoria"
-                : "Publicar receita"}
+          <Button type="submit" className="rounded-full px-7" disabled={photoUploading}>
+            {photoUploading
+              ? "Enviando foto…"
+              : editar
+                ? "Salvar alterações"
+                : externa
+                  ? "Enviar receita para curadoria"
+                  : "Publicar receita"}
           </Button>
         </div>
       </form>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import type { Recipe } from "@/lib/mock-data";
 import { api } from "@/lib/api";
 import { searchRecipes, searchRecipesPage } from "@/lib/recipes-api";
+import { useAuth } from "@/lib/use-auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/")({
 
 function Home() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [q, setQ] = useState("");
   const [featured, setFeatured] = useState<Recipe[]>([]);
   const [verified, setVerified] = useState<Recipe[]>([]);
@@ -259,9 +261,11 @@ function Home() {
                 Avaliar uma receita
               </Link>
             </Button>
-            <Button asChild variant="outline" className="rounded-full px-6">
-              <Link to="/publicar">Publicar receita</Link>
-            </Button>
+            {user?.role !== "moderador" && (
+              <Button asChild variant="outline" className="rounded-full px-6">
+                <Link to="/publicar">Publicar receita</Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>

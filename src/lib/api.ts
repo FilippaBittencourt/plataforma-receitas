@@ -12,7 +12,7 @@ export type ApiUser = {
   status: string;
   dataCadastro: string;
   notificacoes: { avaliacoes: boolean; comentarios: boolean; novidades: boolean };
-  estatisticas: { receitasPublicadas: number; avaliacoes: number };
+  estatisticas: { receitasPublicadas: number; avaliacoes: number; receitasTestadas: number };
 };
 
 export function getToken() {
@@ -29,7 +29,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (options.body && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
   const token = getToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
   let response: Response;
   try {
     response = await fetch(`${API_URL}${path}`, { ...options, headers });

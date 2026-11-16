@@ -30,12 +30,16 @@ export function Footer() {
           </div>
           <div className="space-y-2">
             <p className="font-semibold text-foreground">Comunidade</p>
-            <Link to="/publicar" className="block text-muted-foreground hover:text-foreground">
-              Publicar receita
-            </Link>
-            <Link to="/compartilhar" className="block text-muted-foreground hover:text-foreground">
-              Indicar link
-            </Link>
+            {user?.role !== "moderador" && (
+              <>
+                <Link to="/publicar" className="block text-muted-foreground hover:text-foreground">
+                  Publicar receita
+                </Link>
+                <Link to="/compartilhar" className="block text-muted-foreground hover:text-foreground">
+                  Indicar link
+                </Link>
+              </>
+            )}
             {user?.role === "moderador" && (
               <Link to="/admin" className="block text-muted-foreground hover:text-foreground">
                 Moderação

@@ -1,12 +1,13 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/use-auth";
+import { toast } from "@/lib/feedback";
 
 export function useSignOut() {
   const { logout } = useAuth();
   const navigate = useNavigate();
-  // Sai da página antes de limpar a sessão; senão uma página protegida manda para o login.
   return async () => {
     await navigate({ to: "/" });
     logout();
+    toast.success("Você saiu da sua conta");
   };
 }

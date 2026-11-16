@@ -98,7 +98,8 @@ function RecipePage() {
   const { recipe } = Route.useLoaderData();
   const navigate = useNavigate();
   const { user, ready } = useAuth();
-  const podeAvaliar = ready && recipe.status === "APROVADA" && user?.id !== recipe.authorId;
+  const podeAvaliar =
+    ready && user?.role !== "moderador" && recipe.status === "APROVADA" && user?.id !== recipe.authorId;
   const podeExcluir = user?.role === "moderador" || user?.id === recipe.authorId;
   const excluirReceita = async () => {
     await api(`/api/receitas/${recipe.id}`, { method: "DELETE" });
@@ -293,38 +294,40 @@ function RecipePage() {
               <h1 className="min-w-0 flex-1 text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
                 {recipe.title}
               </h1>
-              {(user?.id === recipe.authorId || user?.role === "moderador") && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      aria-label="Opções da receita"
-                      title="Opções da receita"
-                      className="h-9 w-9 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
-                    >
-                      <MoreVertical width={18} height={18} />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
-                    {user?.id === recipe.authorId && (
-                      <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
-                        <Link to="/publicar" search={{ editar: recipe.id }}>
-                          <Pencil width={16} height={16} /> Editar receita
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {podeExcluir && (
-                      <DeleteRecipeButton
-                        recipeTitle={recipe.title}
-                        buttonLabel="Excluir receita"
-                        menuItem
-                        onDelete={excluirReceita}
-                      />
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+              <div className="flex shrink-0 items-center gap-1">
+                {(user?.id === recipe.authorId || user?.role === "moderador") && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="Opções da receita"
+                        title="Opções da receita"
+                        className="h-9 w-9 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
+                      >
+                        <MoreVertical width={18} height={18} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 rounded-2xl p-1.5">
+                      {user?.id === recipe.authorId && (
+                        <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
+                          <Link to="/publicar" search={{ editar: recipe.id }}>
+                            <Pencil width={16} height={16} /> Editar receita
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
+                      {podeExcluir && (
+                        <DeleteRecipeButton
+                          recipeTitle={recipe.title}
+                          buttonLabel="Excluir receita"
+                          menuItem
+                          onDelete={excluirReceita}
+                        />
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </div>
             <div className="mt-3 flex items-center gap-2.5 lg:mt-2">
               <Avatar className="h-8 w-8 border border-border">
@@ -344,8 +347,9 @@ function RecipePage() {
                   </Link>
                 ) : (
                   <span className="font-medium text-foreground">{recipe.author}</span>
-                )}{" "}
-                {recipe.authorHandle}
+                )}{recipe.authorHandle && (
+                  <> @{recipe.authorHandle.replace(/^@/, "")}</>
+                )}
               </p>
             </div>
 
@@ -672,7 +676,7 @@ function RecipePage() {
                     </div>
                   );
                 })}
-                {user && (
+                {user && user.role !== "moderador" && (
                   <form
                     onSubmit={submitComment}
                     className="rounded-3xl border border-border bg-card p-5"
@@ -740,7 +744,7 @@ function RecipePage() {
                       event.preventDefault();
                       if (commentToDelete !== null) void deleteComment(commentToDelete);
                     }}
-                    className="h-10 rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary/90"
+                    className="h-10 rounded-full bg-destructive px-5 text-destructive-foreground hover:bg-destructive/90"
                   >
                     {deletingComment ? (
                       <LoaderCircle className="animate-spin" />

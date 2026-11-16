@@ -85,7 +85,7 @@ export function DeleteRecipeButton({
           <AlertDialogAction
             disabled={deleting}
             onClick={(event) => void confirmDelete(event)}
-            className="h-10 rounded-full bg-primary px-5 text-primary-foreground hover:bg-primary/90"
+            className="h-10 rounded-full bg-destructive px-5 text-destructive-foreground hover:bg-destructive/90"
           >
             {deleting ? (
               <LoaderCircle className="animate-spin" />

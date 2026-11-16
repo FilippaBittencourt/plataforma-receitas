@@ -74,7 +74,7 @@ function AvaliarPage() {
   const { user } = useAuth();
   return (
     <Shell>
-      <RequireAuth>
+      <RequireAuth disallowRole="moderador">
         {user?.id === recipe.authorId ? (
           <div className="mx-auto max-w-xl px-5 py-24 text-center">
             <h1 className="text-2xl font-semibold text-foreground">

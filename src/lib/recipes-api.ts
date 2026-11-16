@@ -50,7 +50,7 @@ export function toRecipe(r: RecipeDto): Recipe {
     author: r.autor?.nome ?? "Autor removido",
     authorHandle: r.autor?.nomeUsuario ?? "",
     authorId: r.autor?.id == null ? null : String(r.autor.id),
-    status: r.status,
+    ...(r.status ? { status: r.status } : {}),
     image: r.fotoPrincipal ? apiUrl(r.fotoPrincipal) : placeholder,
     hasPhoto: Boolean(r.fotoPrincipal),
     category: r.categoria.nome,
