@@ -1,6 +1,6 @@
 type NoticeRequest = {
   kind: "notice";
-  tone: "success" | "error";
+  tone: "success" | "error" | "warning" | "info";
   title: string;
   description?: string;
 };
@@ -37,6 +37,22 @@ export const toast = {
     dispatch({
       kind: "notice",
       tone: "error",
+      title,
+      ...(options?.description === undefined ? {} : { description: options.description }),
+    });
+  },
+  warning(title: string, options?: { description?: string }) {
+    dispatch({
+      kind: "notice",
+      tone: "warning",
+      title,
+      ...(options?.description === undefined ? {} : { description: options.description }),
+    });
+  },
+  info(title: string, options?: { description?: string }) {
+    dispatch({
+      kind: "notice",
+      tone: "info",
       title,
       ...(options?.description === undefined ? {} : { description: options.description }),
     });
