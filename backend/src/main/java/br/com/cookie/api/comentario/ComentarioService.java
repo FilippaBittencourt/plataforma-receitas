@@ -49,6 +49,9 @@ public class ComentarioService {
     @Transactional
     public ComentarioResponse comentar(Jwt jwt, Integer idReceita, ComentarioRequest req) {
         Usuario usuario = usuarios.ativo(jwt);
+        if (usuario.isAdministrador()) {
+            throw ApiException.proibido("Contas de moderação não podem comentar em receitas.");
+        }
         var receita = receitas.aprovada(idReceita);
         String foto = req.fotoResultado() == null || req.fotoResultado().isBlank() ? null : req.fotoResultado().trim();
         var comentario = comentarios.save(new Comentario(receita, usuario, req.texto().trim(), foto));

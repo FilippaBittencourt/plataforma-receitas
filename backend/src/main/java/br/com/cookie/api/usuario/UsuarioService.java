@@ -201,7 +201,8 @@ public class UsuarioService {
 
     private Estatisticas estatisticas(Usuario u) {
         return new Estatisticas(receitas.countByAutorIdAndStatus(u.getId(), StatusReceita.APROVADA),
-                avaliacoes.countByUsuarioId(u.getId()));
+                avaliacoes.countByUsuarioId(u.getId()),
+                avaliacoes.countReceitasDistintasByUsuarioId(u.getId()));
     }
 
     private TokenResponse emitirToken(Usuario usuario, String codigoRecuperacao) {

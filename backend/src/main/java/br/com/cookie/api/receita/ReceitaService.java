@@ -69,7 +69,9 @@ public class ReceitaService {
 
     @Transactional
     public ReceitaDetalhe criar(Jwt jwt, ReceitaRequest req) {
-        var receita = new Receita(Origem.PROPRIA, usuarios.ativo(jwt));
+        Usuario autor = usuarios.ativo(jwt);
+        validarPodeContribuir(autor);
+        var receita = new Receita(Origem.PROPRIA, autor);
         preencher(receita, req);
         receita.moderar(StatusReceita.APROVADA);
         return ReceitaDetalhe.de(receitas.save(receita));
@@ -77,8 +79,10 @@ public class ReceitaService {
 
     @Transactional
     public ReceitaDetalhe indicar(Jwt jwt, IndicacaoRequest req) {
+        Usuario autor = usuarios.ativo(jwt);
+        validarPodeContribuir(autor);
         String url = validarLink(req.urlFonte());
-        var receita = new Receita(Origem.EXTERNA, usuarios.ativo(jwt));
+        var receita = new Receita(Origem.EXTERNA, autor);
         receita.setUrlFonte(url);
         preencher(receita, new ReceitaRequest(req.titulo(), req.resumo(), req.categoria(), req.tempoPreparo(),
                 req.rendimento(), req.dificuldade(), req.faixaCusto(), req.fotoPrincipal(), req.ingredientes(),
@@ -87,10 +91,17 @@ public class ReceitaService {
         return ReceitaDetalhe.de(receitas.save(receita));
     }
 
+    private void validarPodeContribuir(Usuario usuario) {
+        if (usuario.isAdministrador()) {
+            throw ApiException.proibido("Contas de moderação não podem publicar ou indicar receitas.");
+        }
+    }
+
     /** Só o autor edita; a versão atualizada é publicada imediatamente. */
     @Transactional
     public ReceitaDetalhe atualizar(Jwt jwt, Integer id, ReceitaRequest req) {
         Usuario usuario = usuarios.ativo(jwt);
+        validarPodeContribuir(usuario);
         Receita receita = receitas.findById(id).orElseThrow(ReceitaService::naoEncontrada);
         if (!receita.isDoAutor(usuario)) {
             throw ApiException.proibido("Só quem publicou pode editar a receita.");

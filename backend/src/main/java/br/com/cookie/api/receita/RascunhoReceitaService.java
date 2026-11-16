@@ -32,7 +32,7 @@ public class RascunhoReceitaService {
     public List<RascunhoResumo> listar(Jwt jwt) {
         Usuario autor = usuarios.logado(jwt);
         return rascunhos.findByAutorIdOrderByAtualizadoEmDesc(autor.getId()).stream()
-                .map(r -> new RascunhoResumo(r.getId(), r.getTitulo(), r.getAtualizadoEm())).toList();
+                .map(r -> new RascunhoResumo(r.getId(), r.getTitulo(), origem(r), r.getAtualizadoEm())).toList();
     }
 
     @Transactional(readOnly = true)
@@ -88,11 +88,27 @@ public class RascunhoReceitaService {
         catch (JacksonException e) { throw new IllegalStateException("Conteúdo de rascunho inválido no banco.", e); }
     }
 
+    private String origem(RascunhoReceita rascunho) {
+        try {
+            JsonNode conteudo = json.readTree(rascunho.getConteudo());
+            JsonNode origem = conteudo.get("origem");
+            if (origem != null && origem.isTextual() && "EXTERNA".equalsIgnoreCase(origem.asText())) {
+                return "EXTERNA";
+            }
+            JsonNode urlFonte = conteudo.get("urlFonte");
+            return urlFonte != null && urlFonte.isTextual() && !urlFonte.asText().isBlank()
+                    ? "EXTERNA"
+                    : "PROPRIA";
+        } catch (JacksonException e) {
+            throw new IllegalStateException("Conteúdo de rascunho inválido no banco.", e);
+        }
+    }
+
     public record ConteudoRascunho(JsonNode conteudo) {
         public ConteudoRascunho {
             if (conteudo == null || !conteudo.isObject()) throw ApiException.invalido("Envie o conteúdo do rascunho como um objeto JSON.");
         }
     }
-    public record RascunhoResumo(Integer id, String titulo, java.time.Instant atualizadoEm) {}
+    public record RascunhoResumo(Integer id, String titulo, String origem, java.time.Instant atualizadoEm) {}
     public record RascunhoDetalhe(Integer id, String titulo, JsonNode conteudo, java.time.Instant atualizadoEm) {}
 }

@@ -49,6 +49,9 @@ public class AvaliacaoService {
     @Transactional
     public AvaliacaoResponse avaliar(Jwt jwt, Integer idReceita, AvaliacaoRequest req) {
         Usuario usuario = usuarios.ativo(jwt);
+        if (usuario.isAdministrador()) {
+            throw ApiException.proibido("Contas de moderação não podem avaliar nem testar receitas.");
+        }
         var receita = receitas.aprovada(idReceita);
         if (receita.isDoAutor(usuario)) {
             throw ApiException.proibido("Você não pode avaliar a própria receita.");

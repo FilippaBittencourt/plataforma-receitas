@@ -7,6 +7,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -19,6 +20,66 @@ import org.springframework.mock.web.MockMultipartFile;
 import com.jayway.jsonpath.JsonPath;
 
 class FluxosDaApiTest extends ApiTestBase {
+
+    @Test
+    void contaCompletaLoginPerfilCredenciaisERecuperacaoDeSenha() throws Exception {
+        String email = emailUnico("conta-completa");
+        String cadastro = mvc.perform(json(post("/api/auth/cadastro"), """
+                {"nome": "Ana Cozinha", "email": "%s", "senha": "senha-forte-123"}
+                """.formatted(email)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.codigoRecuperacao").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String token = JsonPath.read(cadastro, "$.token");
+        String codigo = JsonPath.read(cadastro, "$.codigoRecuperacao");
+
+        mvc.perform(comToken(json(patch("/api/me"), """
+                {"nome": "Ana Atualizada", "nomeUsuario": "@ana_cozinha", "bio": "Testando receitas", "fotoPerfil": null}
+                """), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nome").value("Ana Atualizada"))
+                .andExpect(jsonPath("$.nomeUsuario").value("ana_cozinha"))
+                .andExpect(jsonPath("$.bio").value("Testando receitas"));
+        mvc.perform(comToken(json(put("/api/me/notificacoes"), """
+                {"avaliacoes": false, "comentarios": true, "novidades": true}
+                """), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notificacoes.avaliacoes").value(false))
+                .andExpect(jsonPath("$.notificacoes.novidades").value(true));
+
+        String novoEmail = emailUnico("conta-alterada");
+        mvc.perform(comToken(json(put("/api/me/email"), """
+                {"email": "%s"}
+                """.formatted(novoEmail)), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(novoEmail));
+        mvc.perform(comToken(json(put("/api/me/senha"), """
+                {"senhaAtual": "senha-forte-123", "novaSenha": "senha-nova-456"}
+                """), token))
+                .andExpect(status().isNoContent());
+        mvc.perform(json(post("/api/auth/login"), """
+                {"email": "%s", "senha": "senha-forte-123"}
+                """.formatted(novoEmail)))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(json(post("/api/auth/login"), """
+                {"email": "%s", "senha": "senha-nova-456"}
+                """.formatted(novoEmail)))
+                .andExpect(status().isOk());
+
+        mvc.perform(json(post("/api/auth/redefinir-senha"), """
+                {"email": "%s", "codigoRecuperacao": "%s", "novaSenha": "senha-recuperada-789"}
+                """.formatted(novoEmail, codigo)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigoRecuperacao").isNotEmpty());
+        mvc.perform(json(post("/api/auth/login"), """
+                {"email": "%s", "senha": "senha-recuperada-789"}
+                """.formatted(novoEmail)))
+                .andExpect(status().isOk());
+        mvc.perform(json(post("/api/auth/redefinir-senha"), """
+                {"email": "%s", "codigoRecuperacao": "%s", "novaSenha": "outra-senha-999"}
+                """.formatted(novoEmail, codigo)))
+                .andExpect(status().isBadRequest());
+    }
 
     @Test
     void cadastroGeraNomeDeUsuarioETrataEmailSemDiferenciarMaiusculas() throws Exception {
@@ -89,6 +150,130 @@ class FluxosDaApiTest extends ApiTestBase {
     }
 
     @Test
+    void rascunhoSoPodeSerLidoEditadoEExcluidoPeloAutor() throws Exception {
+        String autor = novoUsuario();
+        String outraPessoa = novoUsuario();
+        String resposta = mvc.perform(comToken(json(post("/api/rascunhos"), """
+                {"conteudo": {"titulo": "Bolo em construção", "resumo": "Primeira versão"}}
+                """), autor))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.titulo").value("Bolo em construção"))
+                .andReturn().getResponse().getContentAsString();
+        Integer id = JsonPath.read(resposta, "$.id");
+
+        mvc.perform(comToken(get("/api/rascunhos/" + id), outraPessoa))
+                .andExpect(status().isNotFound());
+        mvc.perform(comToken(json(put("/api/rascunhos/" + id), """
+                {"conteudo": {"titulo": "Bolo pronto", "resumo": "Versão revisada"}}
+                """), autor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.titulo").value("Bolo pronto"))
+                .andExpect(jsonPath("$.conteudo.resumo").value("Versão revisada"));
+        mvc.perform(comToken(get("/api/rascunhos"), autor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(id))
+                .andExpect(jsonPath("$[0].origem").value("PROPRIA"));
+        mvc.perform(comToken(json(post("/api/rascunhos"), """
+                {"conteudo": {"titulo": "Receita indicada", "urlFonte": "https://example.com/receita"}}
+                """), autor))
+                .andExpect(status().isCreated());
+        mvc.perform(comToken(get("/api/rascunhos"), autor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].origem").value("EXTERNA"))
+                .andExpect(jsonPath("$[1].origem").value("PROPRIA"));
+        mvc.perform(comToken(delete("/api/rascunhos/" + id), autor))
+                .andExpect(status().isNoContent());
+        mvc.perform(comToken(get("/api/rascunhos/" + id), autor))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void receitaExternaSoFicaPublicaDepoisDaAprovacaoEPodeSerRecusada() throws Exception {
+        String autor = novoUsuario();
+        String moderador = novoModerador();
+        String corpoExterno = """
+                {"urlFonte": "https://example.com/receita", "titulo": "%s",
+                 "resumo": "Receita externa completa", "categoria": "doces",
+                 "tempoPreparo": 30, "rendimento": "8 porções", "dificuldade": "FACIL",
+                 "ingredientes": [
+                   {"nome": "farinha", "quantidade": 200, "unidadeMedida": "g"},
+                   {"nome": "açúcar", "quantidade": 100, "unidadeMedida": "g"}
+                 ], "passos": ["Misture tudo.", "Asse até dourar."]}
+                """;
+        String pendente = mvc.perform(comToken(json(post("/api/receitas/indicacoes"),
+                corpoExterno.formatted("Receita externa recusada")), autor))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Integer idRecusada = JsonPath.read(pendente, "$.id");
+        mvc.perform(get("/api/receitas/" + idRecusada)).andExpect(status().isNotFound());
+        mvc.perform(comToken(get("/api/receitas/" + idRecusada), autor))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDENTE"));
+        mvc.perform(comToken(post("/api/moderacao/receitas/" + idRecusada + "/recusar"), moderador))
+                .andExpect(status().isNoContent());
+        mvc.perform(comToken(get("/api/receitas/" + idRecusada), autor))
+                .andExpect(jsonPath("$.status").value("RECUSADA"));
+
+        String aprovada = mvc.perform(comToken(json(post("/api/receitas/indicacoes"),
+                corpoExterno.formatted("Receita externa aprovada")), autor))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Integer idAprovada = JsonPath.read(aprovada, "$.id");
+        mvc.perform(comToken(post("/api/moderacao/receitas/" + idAprovada + "/aprovar"), moderador))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/receitas/" + idAprovada))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APROVADA"));
+    }
+
+    @Test
+    void comentarioRespeitaAutoriaModeracaoEDenuncia() throws Exception {
+        Integer receita = criarReceita(novoUsuario(), "Receita com comentário moderado");
+        String autorComentario = novoUsuario();
+        String outraPessoa = novoUsuario();
+        String moderador = novoModerador();
+        String corpo = mvc.perform(comToken(json(post("/api/receitas/" + receita + "/comentarios"), """
+                {"texto": "Comentário que será moderado", "fotoResultado": null}
+                """), autorComentario))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Integer comentario = JsonPath.read(corpo, "$.id");
+
+        mvc.perform(comToken(delete("/api/comentarios/" + comentario), outraPessoa))
+                .andExpect(status().isForbidden());
+        String denuncia = mvc.perform(comToken(json(post("/api/denuncias"), """
+                {"idComentario": %d, "motivo": "Conteúdo inadequado"}
+                """.formatted(comentario)), outraPessoa))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Integer idDenuncia = JsonPath.read(denuncia, "$.id");
+        mvc.perform(comToken(post("/api/moderacao/comentarios/" + comentario + "/ocultar"), moderador))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/receitas/" + receita + "/comentarios"))
+                .andExpect(jsonPath("$.total").value(0));
+        mvc.perform(comToken(post("/api/moderacao/comentarios/" + comentario + "/restaurar"), moderador))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/receitas/" + receita + "/comentarios"))
+                .andExpect(jsonPath("$.total").value(1));
+        mvc.perform(comToken(post("/api/moderacao/denuncias/" + idDenuncia + "/resolver"), moderador))
+                .andExpect(status().isNoContent());
+        mvc.perform(comToken(delete("/api/comentarios/" + comentario), autorComentario))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void excluirReceitaExigeAutoria() throws Exception {
+        String autor = novoUsuario();
+        String pessoa = novoUsuario();
+        Integer receita = criarReceita(autor, "Receita que será excluída");
+        mvc.perform(comToken(delete("/api/receitas/" + receita), pessoa))
+                .andExpect(status().isForbidden());
+        mvc.perform(comToken(delete("/api/receitas/" + receita), autor))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/receitas/" + receita)).andExpect(status().isNotFound());
+    }
+
+    @Test
     void cadaTesteCriaUmaAvaliacaoEComentarioPermaneceIndependente() throws Exception {
         String autor = novoUsuario();
         Integer id = criarReceita(autor, "Receita para avaliar");
@@ -156,6 +341,9 @@ class FluxosDaApiTest extends ApiTestBase {
                 .andExpect(jsonPath("$[0].idReceita").value(id))
                 .andExpect(jsonPath("$[0].funcionou").value(false))
                 .andExpect(jsonPath("$[1].idReceita").value(id));
+        mvc.perform(comToken(get("/api/me"), pessoa))
+                .andExpect(jsonPath("$.estatisticas.avaliacoes").value(2))
+                .andExpect(jsonPath("$.estatisticas.receitasTestadas").value(1));
     }
 
     @Test

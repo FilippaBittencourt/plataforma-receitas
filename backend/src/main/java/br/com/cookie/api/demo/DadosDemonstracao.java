@@ -56,25 +56,42 @@ public class DadosDemonstracao implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         if (usuarios.count() > 0) {
-            Usuario autora = usuarios.findByNomeUsuario("marinaduarte")
-                    .or(() -> usuarios.findByEmail("marina@cookie.com"))
-                    .orElseGet(() -> usuario("Marina Duarte", "marinaduarte", "marina@cookie.com",
-                            "Confeiteira caseira. Peso tudo, até o sal."));
+            atualizarContaDemo("Filippa", "filippa", "filippa@gmail.com", "juliaferraz", "julia@cookie.com", false);
+            Usuario autora = atualizarContaDemo("Bianca", "bianca", "bianca@gmail.com", "marinaduarte",
+                    "marina@cookie.com", true);
+            atualizarContaDemo("Equipe de Moderação", "moderacao", "moderacao@gmail.com", "moderacao",
+                    "moderacao@cookie.com", false)
+                    .setTipo(TipoUsuario.ADMINISTRADOR);
             criarReceitasDemonstracao(autora);
             return;
         }
-        usuario("Júlia Ferraz", "juliaferraz", "julia@cookie.com",
+        usuario("Filippa", "filippa", "filippa@gmail.com",
                 "Testo receitas nos fins de semana e anoto tudo. Confio em medidas em gramas.");
-        Usuario marina = usuario("Marina Duarte", "marinaduarte", "marina@cookie.com",
+        Usuario marina = usuario("Bianca", "bianca", "bianca@gmail.com",
                 "Confeiteira caseira. Peso tudo, até o sal.");
-        Usuario moderacao = usuario("Equipe de Moderação", "moderacao", "moderacao@cookie.com",
+        Usuario moderacao = usuario("Equipe de Moderação", "moderacao", "moderacao@gmail.com",
                 "Curadoria de receitas, fotos e links externos.");
         moderacao.setTipo(TipoUsuario.ADMINISTRADOR);
 
         criarReceitasDemonstracao(marina);
 
-        log.info("Dados de demonstração criados. Contas: julia@cookie.com, marina@cookie.com e "
-                + "moderacao@cookie.com (senha {}).", SENHA);
+        log.info("Dados de demonstração criados. Contas: filippa@gmail.com, bianca@gmail.com e "
+                + "moderacao@gmail.com (senha {}).", SENHA);
+    }
+
+    private Usuario atualizarContaDemo(String nome, String nomeUsuario, String email, String nomeUsuarioAntigo,
+            String emailAntigo, boolean autora) {
+        Usuario conta = usuarios.findByNomeUsuario(nomeUsuarioAntigo)
+                .or(() -> usuarios.findByEmail(emailAntigo))
+                .or(() -> usuarios.findByNomeUsuario(nomeUsuario))
+                .or(() -> usuarios.findByEmail(email))
+                .orElseGet(() -> usuario(nome, nomeUsuario, email,
+                        autora ? "Confeiteira caseira. Peso tudo, até o sal."
+                                : "Testo receitas nos fins de semana e anoto tudo. Confio em medidas em gramas."));
+        conta.setNome(nome);
+        conta.setNomeUsuario(nomeUsuario);
+        conta.setEmail(email);
+        return conta;
     }
 
     private void criarReceitasDemonstracao(Usuario autora) {

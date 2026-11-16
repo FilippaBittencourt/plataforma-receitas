@@ -29,9 +29,9 @@ O assistente exige login e limita cada conta a 12 perguntas por minuto. Sem chav
 
 | E-mail | Papel |
 |---|---|
-| `julia@cookie.com` | usuária |
-| `marina@cookie.com` | autora das receitas de exemplo |
-| `moderacao@cookie.com` | moderação (ADMINISTRADOR) |
+| `filippa@gmail.com` | usuária |
+| `bianca@gmail.com` | autora das receitas de exemplo |
+| `moderacao@gmail.com` | moderação (ADMINISTRADOR) |
 
 Para abrir o banco num cliente (DBeaver, pgAdmin): host `localhost`, porta `5433`, banco, usuário e senha `cookie`.
 

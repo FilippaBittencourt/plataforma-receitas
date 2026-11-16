@@ -58,7 +58,7 @@ public final class UsuarioDtos {
         }
     }
 
-    public record Estatisticas(long receitasPublicadas, long avaliacoes) {
+    public record Estatisticas(long receitasPublicadas, long avaliacoes, long receitasTestadas) {
     }
 
     /** Dados que só a própria pessoa vê. */

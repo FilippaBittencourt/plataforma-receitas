@@ -37,6 +37,7 @@ class DadosDemonstracaoTest {
 
         when(usuarios.count()).thenReturn(1L);
         when(usuarios.findByNomeUsuario("marinaduarte")).thenReturn(Optional.of(autora));
+        when(usuarios.save(any(Usuario.class))).thenAnswer(invocacao -> invocacao.getArgument(0));
         when(receitas.findAll()).thenReturn(List.of());
         when(receitas.save(any(Receita.class))).thenAnswer(invocacao -> {
             Receita receita = invocacao.getArgument(0);
