@@ -11,8 +11,13 @@ export type ApiUser = {
   tipo: "USUARIO" | "ADMINISTRADOR";
   status: string;
   dataCadastro: string;
-  notificacoes: { avaliacoes: boolean; comentarios: boolean; novidades: boolean };
-  estatisticas: { receitasPublicadas: number; avaliacoes: number; receitasTestadas: number };
+  estatisticas: {
+    receitasPublicadas: number;
+    avaliacoes: number;
+    receitasTestadas: number;
+    seguidores?: number;
+    seguindo?: number;
+  };
 };
 
 export function getToken() {

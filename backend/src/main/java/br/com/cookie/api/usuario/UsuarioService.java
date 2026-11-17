@@ -20,7 +20,6 @@ import br.com.cookie.api.usuario.UsuarioDtos.CadastroRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.CodigoRecuperacaoResponse;
 import br.com.cookie.api.usuario.UsuarioDtos.Estatisticas;
 import br.com.cookie.api.usuario.UsuarioDtos.LoginRequest;
-import br.com.cookie.api.usuario.UsuarioDtos.Notificacoes;
 import br.com.cookie.api.usuario.UsuarioDtos.PerfilPublicoResponse;
 import br.com.cookie.api.usuario.UsuarioDtos.PerfilResponse;
 import br.com.cookie.api.usuario.UsuarioDtos.TokenResponse;
@@ -29,15 +28,18 @@ import br.com.cookie.api.usuario.UsuarioDtos.TokenResponse;
 public class UsuarioService {
 
     private final UsuarioRepository usuarios;
+    private final SeguidorRepository seguidores;
     private final ReceitaRepository receitas;
     private final AvaliacaoRepository avaliacoes;
     private final PasswordEncoder senhas;
     private final TokenService tokens;
     private final CodigoRecuperacaoService codigosRecuperacao;
 
-    public UsuarioService(UsuarioRepository usuarios, ReceitaRepository receitas, AvaliacaoRepository avaliacoes,
+    public UsuarioService(UsuarioRepository usuarios, SeguidorRepository seguidores, ReceitaRepository receitas,
+            AvaliacaoRepository avaliacoes,
             PasswordEncoder senhas, TokenService tokens, CodigoRecuperacaoService codigosRecuperacao) {
         this.usuarios = usuarios;
+        this.seguidores = seguidores;
         this.receitas = receitas;
         this.avaliacoes = avaliacoes;
         this.senhas = senhas;
@@ -167,15 +169,6 @@ public class UsuarioService {
         usuarios.save(usuario);
     }
 
-    @Transactional
-    public PerfilResponse atualizarNotificacoes(Jwt jwt, Notificacoes req) {
-        Usuario usuario = logado(jwt);
-        usuario.setNotifAvaliacoes(req.avaliacoes());
-        usuario.setNotifComentarios(req.comentarios());
-        usuario.setNotifNovidades(req.novidades());
-        return perfil(usuarios.save(usuario));
-    }
-
     /**
      * Exclui a conta. O banco cuida do resto: avaliações, comentários e denúncias da pessoa são apagados
      * (CASCADE) e as receitas publicadas ficam no site sem autor (SET NULL).
@@ -195,14 +188,15 @@ public class UsuarioService {
 
     public PerfilResponse perfil(Usuario u) {
         return new PerfilResponse(u.getId(), u.getNome(), u.getNomeUsuario(), u.getEmail(), u.getBio(),
-                u.getFotoPerfil(), u.getTipo(), u.getStatus(), u.getDataCadastro(), Notificacoes.de(u),
-                estatisticas(u));
+                u.getFotoPerfil(), u.getTipo(), u.getStatus(), u.getDataCadastro(), estatisticas(u));
     }
 
     private Estatisticas estatisticas(Usuario u) {
         return new Estatisticas(receitas.countByAutorIdAndStatus(u.getId(), StatusReceita.APROVADA),
                 avaliacoes.countByUsuarioId(u.getId()),
-                avaliacoes.countReceitasDistintasByUsuarioId(u.getId()));
+                avaliacoes.countReceitasDistintasByUsuarioId(u.getId()),
+                seguidores.countBySeguidoId(u.getId()),
+                seguidores.countBySeguidorId(u.getId()));
     }
 
     private TokenResponse emitirToken(Usuario usuario, String codigoRecuperacao) {

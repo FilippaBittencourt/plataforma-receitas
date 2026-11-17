@@ -1,14 +1,15 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Ellipsis, UsersRound } from "lucide-react";
 import { Shell } from "@/components/site/Shell";
+import { ProfileHeader } from "@/components/site/ProfileHeader";
 import { RecipeCard } from "@/components/site/RecipeCard";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { api, apiUrl } from "@/lib/api";
+import { api } from "@/lib/api";
 import { requestText, toast } from "@/lib/feedback";
 import { toRecipe, type RecipeDto } from "@/lib/recipes-api";
 import type { Recipe } from "@/lib/mock-data";
+import { useAuth } from "@/lib/use-auth";
 
 type PublicProfile = {
   id: number;
@@ -18,7 +19,13 @@ type PublicProfile = {
   fotoPerfil: string | null;
   moderador: boolean;
   dataCadastro: string;
-  estatisticas: { receitasPublicadas: number; avaliacoes: number; receitasTestadas: number };
+  estatisticas: {
+    receitasPublicadas: number;
+    avaliacoes: number;
+    receitasTestadas: number;
+    seguidores?: number;
+    seguindo?: number;
+  };
 };
 
 export const Route = createFileRoute("/usuarios/$nomeUsuario")({
@@ -40,8 +47,15 @@ export const Route = createFileRoute("/usuarios/$nomeUsuario")({
 
 function PublicProfilePage() {
   const profile = Route.useLoaderData();
+  const { user } = useAuth();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [error, setError] = useState("");
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followerCount, setFollowerCount] = useState(profile.estatisticas.seguidores ?? 0);
+  const [followBusy, setFollowBusy] = useState(false);
+  const isOwnProfile =
+    user?.handle.replace(/^@/, "").toLowerCase() === profile.nomeUsuario.toLowerCase();
+  const canFollow = !!user && user.role !== "moderador" && !isOwnProfile && !profile.moderador;
   const reportProfile = async () => {
     const motivo = await requestText({
       title: "Denunciar perfil",
@@ -78,49 +92,94 @@ function PublicProfilePage() {
       active = false;
     };
   }, [profile.nomeUsuario]);
+  useEffect(() => {
+    let active = true;
+    setFollowerCount(profile.estatisticas.seguidores ?? 0);
+    if (!canFollow) {
+      setIsFollowing(false);
+      return () => {
+        active = false;
+      };
+    }
+    api<{ seguindo: boolean }>(`/api/usuarios/${encodeURIComponent(profile.nomeUsuario)}/seguir`)
+      .then(({ seguindo }) => {
+        if (active) setIsFollowing(seguindo);
+      })
+      .catch(() => {
+        if (active) setIsFollowing(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [profile.nomeUsuario, profile.estatisticas.seguidores, canFollow]);
+  const toggleFollow = async () => {
+    if (!canFollow || followBusy) return;
+    setFollowBusy(true);
+    const next = !isFollowing;
+    setIsFollowing(next);
+    setFollowerCount((count) => Math.max(0, count + (next ? 1 : -1)));
+    try {
+      await api(`/api/usuarios/${encodeURIComponent(profile.nomeUsuario)}/seguir`, {
+        method: next ? "PUT" : "DELETE",
+      });
+    } catch (e) {
+      setIsFollowing(!next);
+      setFollowerCount((count) => Math.max(0, count + (next ? -1 : 1)));
+      toast.error(e instanceof Error ? e.message : "Não foi possível atualizar seguidores.");
+    } finally {
+      setFollowBusy(false);
+    }
+  };
   return (
     <Shell>
       <main className="mx-auto max-w-5xl px-5 py-12">
-        <section className="flex flex-col gap-5 rounded-[2rem] border border-border bg-warm p-8 sm:flex-row sm:items-center">
-          <Avatar className="h-20 w-20 border border-border">
-            <AvatarImage src={apiUrl(profile.fotoPerfil)} alt={profile.nome} />
-            <AvatarFallback className="bg-card text-xl">
-              {profile.nome
-                .split(/\s+/)
-                .slice(0, 2)
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold">{profile.nome}</h1>
-              {profile.moderador && <Badge variant="secondary">Moderação</Badge>}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              @{profile.nomeUsuario.replace(/^@/, "")} · Membro desde{" "}
-              {new Date(profile.dataCadastro).getFullYear()}
-            </p>
-            {profile.bio && (
-              <p className="mt-2 max-w-xl text-sm text-muted-foreground">{profile.bio}</p>
-            )}
-          </div>
-          <div className="sm:ml-auto sm:text-right">
-            <p className="text-2xl font-semibold">{profile.estatisticas.receitasPublicadas}</p>
-            <p className="text-xs text-muted-foreground">receitas publicadas</p>
-            <p className="mt-2 text-sm">{profile.estatisticas.avaliacoes} avaliações</p>
-          </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="rounded-full"
-            onClick={() => void reportProfile()}
-          >
-            Denunciar perfil
-          </Button>
-        </section>
+        <ProfileHeader
+          name={profile.nome}
+          handle={profile.nomeUsuario}
+          fotoPerfil={profile.fotoPerfil}
+          bio={profile.bio}
+          since={`Membro desde ${new Date(profile.dataCadastro).getFullYear()}`}
+          moderator={profile.moderador}
+          stats={{
+            receitas: profile.estatisticas.receitasPublicadas,
+            seguidores: followerCount,
+            seguindo: profile.estatisticas.seguindo ?? 0,
+            avaliacoes: profile.estatisticas.avaliacoes,
+            testes: profile.estatisticas.receitasTestadas,
+          }}
+          actions={
+            <>
+              {canFollow && (
+                <Button
+                  type="button"
+                  variant={isFollowing ? "outline" : "default"}
+                  size="sm"
+                  className="w-24 shrink-0 justify-center rounded-lg px-4"
+                  disabled={followBusy}
+                  onClick={() => void toggleFollow()}
+                >
+                  {isFollowing ? "Seguindo" : "Seguir"}
+                </Button>
+              )}
+              {!user && !profile.moderador && (
+                <Button asChild type="button" size="sm" className="rounded-lg px-4">
+                  <Link to="/entrar">Seguir</Link>
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9 shrink-0 rounded-lg text-muted-foreground"
+                onClick={() => void reportProfile()}
+                aria-label="Denunciar perfil"
+                title="Denunciar perfil"
+              >
+                <Ellipsis className="h-5 w-5" />
+              </Button>
+            </>
+          }
+        />
         <h2 className="mt-10 text-xl font-semibold">Receitas publicadas</h2>
         {error && (
           <p role="alert" className="mt-4 text-sm text-destructive">

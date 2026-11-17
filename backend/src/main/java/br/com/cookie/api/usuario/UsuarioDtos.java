@@ -5,7 +5,6 @@ import java.time.Instant;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -51,25 +50,27 @@ public final class UsuarioDtos {
             @NotBlank(message = "Informe a nova senha.") @Size(min = 8, max = 72, message = "A senha precisa ter de 8 a 72 caracteres.") String novaSenha) {
     }
 
-    public record Notificacoes(@NotNull Boolean avaliacoes, @NotNull Boolean comentarios, @NotNull Boolean novidades) {
-
-        static Notificacoes de(Usuario u) {
-            return new Notificacoes(u.isNotifAvaliacoes(), u.isNotifComentarios(), u.isNotifNovidades());
-        }
-    }
-
-    public record Estatisticas(long receitasPublicadas, long avaliacoes, long receitasTestadas) {
+    public record Estatisticas(long receitasPublicadas, long avaliacoes, long receitasTestadas, long seguidores,
+            long seguindo) {
     }
 
     /** Dados que só a própria pessoa vê. */
     public record PerfilResponse(Integer id, String nome, String nomeUsuario, String email, String bio,
             String fotoPerfil, TipoUsuario tipo, StatusUsuario status, Instant dataCadastro,
-            @Valid Notificacoes notificacoes, Estatisticas estatisticas) {
+            Estatisticas estatisticas) {
     }
 
     /** Dados exibidos no perfil público. */
     public record PerfilPublicoResponse(Integer id, String nome, String nomeUsuario, String bio, String fotoPerfil,
             boolean moderador, Instant dataCadastro, Estatisticas estatisticas) {
+    }
+
+    public record PerfilSeguidor(Integer id, String nome, String nomeUsuario, String fotoPerfil) {
+
+        static PerfilSeguidor de(Usuario usuario) {
+            return new PerfilSeguidor(usuario.getId(), usuario.getNome(), usuario.getNomeUsuario(),
+                    usuario.getFotoPerfil());
+        }
     }
 
     /** Autor resumido, usado em receitas e comentários. Nulo quando a conta foi excluída. */

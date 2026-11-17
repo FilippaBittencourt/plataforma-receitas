@@ -74,10 +74,15 @@ export type Account = {
   fotoPerfil?: string | null;
   since: string;
   role: Role;
-  stats: { publicadas: number; avaliacoes: number; testadas: number; seguidores: number };
+  stats: {
+    publicadas: number;
+    avaliacoes: number;
+    testadas: number;
+    seguidores: number;
+    seguindo: number;
+  };
   publishedIds: string[];
   testedIds: string[];
-  notifications: { avaliacoes: boolean; comentarios: boolean; novidades: boolean };
 };
 
 // Contas de demonstração disponíveis como atalhos na tela de login.
@@ -90,10 +95,9 @@ export const demoAccounts: Account[] = [
     bio: "Testo receitas nos fins de semana e anoto tudo. Confio em medidas em gramas.",
     since: "Membro desde 2024",
     role: "membro",
-    stats: { publicadas: 12, avaliacoes: 87, testadas: 64, seguidores: 1240 },
+    stats: { publicadas: 12, avaliacoes: 87, testadas: 64, seguidores: 1240, seguindo: 0 },
     publishedIds: [],
     testedIds: [],
-    notifications: { avaliacoes: true, comentarios: true, novidades: false },
   },
   {
     id: "u-bianca",
@@ -103,10 +107,9 @@ export const demoAccounts: Account[] = [
     bio: "Confeiteira caseira. Peso tudo, até o sal.",
     since: "Conta de demonstração",
     role: "membro",
-    stats: { publicadas: 4, avaliacoes: 0, testadas: 0, seguidores: 0 },
+    stats: { publicadas: 4, avaliacoes: 0, testadas: 0, seguidores: 0, seguindo: 0 },
     publishedIds: [],
     testedIds: [],
-    notifications: { avaliacoes: true, comentarios: true, novidades: false },
   },
   {
     id: "u-moderacao",
@@ -116,10 +119,9 @@ export const demoAccounts: Account[] = [
     bio: "Curadoria de receitas, fotos e links externos.",
     since: "Membro desde 2023",
     role: "moderador",
-    stats: { publicadas: 0, avaliacoes: 312, testadas: 140, seguidores: 86 },
+    stats: { publicadas: 0, avaliacoes: 312, testadas: 140, seguidores: 86, seguindo: 0 },
     publishedIds: [],
     testedIds: [],
-    notifications: { avaliacoes: false, comentarios: true, novidades: true },
   },
 ];
 

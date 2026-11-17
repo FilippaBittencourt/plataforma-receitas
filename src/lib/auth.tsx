@@ -50,11 +50,11 @@ function toAccount(u: ApiUser): Account {
       publicadas: u.estatisticas.receitasPublicadas,
       avaliacoes: u.estatisticas.avaliacoes,
       testadas: u.estatisticas.receitasTestadas,
-      seguidores: 0,
+      seguidores: u.estatisticas.seguidores ?? 0,
+      seguindo: u.estatisticas.seguindo ?? 0,
     },
     publishedIds: [],
     testedIds: [],
-    notifications: u.notificacoes,
   };
 }
 
