@@ -43,6 +43,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
 
   const router = useRouter();
+  const detail = error.message?.trim();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -54,6 +55,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Algo deu errado do nosso lado. Tente de novo ou volte para a home.
         </p>
+        {detail && (
+          <p
+            role="alert"
+            className="mt-3 break-words rounded-lg bg-secondary/60 p-3 text-left text-xs text-muted-foreground"
+          >
+            Detalhe: {detail}
+          </p>
+        )}
 
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
