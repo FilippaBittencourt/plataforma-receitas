@@ -45,7 +45,12 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
             <h3 className="mt-1 text-lg font-semibold leading-snug text-foreground">
               {recipe.title}
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">por {recipe.author}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              por {recipe.author}
+              {recipe.authorHandle && (
+                <span className="ml-1 text-xs">@{recipe.authorHandle.replace(/^@+/, "")}</span>
+              )}
+            </p>
           </div>
 
           <div className="mt-auto space-y-3">
