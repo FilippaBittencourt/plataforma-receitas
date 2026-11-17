@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { categories } from "@/lib/mock-data";
+import { getRecipeCategories, type RecipeCategory } from "@/lib/categories-api";
 import { api, apiUrl } from "@/lib/api";
 import type { RecipeDto } from "@/lib/recipes-api";
 import {
@@ -281,6 +281,8 @@ function PublicarForm() {
   const [draftId, setDraftId] = useState<number | null>(null);
   const [drafts, setDrafts] = useState<DraftSummary[]>([]);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [categories, setCategories] = useState<RecipeCategory[]>([]);
+  const [categoryLoadError, setCategoryLoadError] = useState("");
 
   useLayoutEffect(() => {
     stepListRef.current
@@ -315,6 +317,23 @@ function PublicarForm() {
     const delta = dragged.getBoundingClientRect().top + anchor.offset - anchor.pointerY;
     if (Math.abs(delta) > 1) window.scrollBy(0, delta);
   }, [draggingBlockId]);
+
+  useEffect(() => {
+    let active = true;
+    getRecipeCategories()
+      .then((items) => {
+        if (active) setCategories(items);
+      })
+      .catch((error) => {
+        if (active)
+          setCategoryLoadError(
+            error instanceof Error ? error.message : "Não foi possível carregar as categorias.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!draggingBlockId) return;
@@ -713,7 +732,11 @@ function PublicarForm() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label>Categoria *</Label>
-                <Select value={categoria} onValueChange={setCategoria}>
+                <Select
+                  value={categoria}
+                  onValueChange={setCategoria}
+                  disabled={categories.length === 0 || Boolean(categoryLoadError)}
+                >
                   <SelectTrigger
                     aria-invalid={Boolean(errors.categoria)}
                     className="mt-2 rounded-xl bg-background"
@@ -729,6 +752,11 @@ function PublicarForm() {
                   </SelectContent>
                 </Select>
                 <FieldError>{errors.categoria}</FieldError>
+                {categoryLoadError && (
+                  <p role="alert" className="mt-1 text-sm text-destructive">
+                    {categoryLoadError}
+                  </p>
+                )}
               </div>
               <div>
                 <Label htmlFor="tempo">Tempo (min) *</Label>

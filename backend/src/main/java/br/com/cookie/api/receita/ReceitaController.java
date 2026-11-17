@@ -47,10 +47,12 @@ public class ReceitaController {
             @RequestParam(required = false) String ingrediente,
             @RequestParam(required = false) Origem origem,
             @RequestParam(defaultValue = "false") boolean verificadas,
+            @RequestParam(defaultValue = "0") int taxaSucessoMinima,
             @RequestParam(required = false) String ordem,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "12") int tamanho) {
-        var busca = new BuscaReceitas(q, categoria, ingrediente, origem, verificadas, 0, Ordem.de(ordem));
+        var busca = new BuscaReceitas(q, categoria, ingrediente, origem, verificadas,
+                Math.clamp(taxaSucessoMinima, 0, 100), 0, Ordem.de(ordem));
         return receitas.buscar(busca, paginacao(pagina, tamanho));
     }
 
@@ -58,7 +60,7 @@ public class ReceitaController {
     @GetMapping("/ranking")
     List<ReceitaResumo> ranking(@RequestParam(required = false) String categoria,
             @RequestParam(defaultValue = "20") int limite) {
-        var busca = new BuscaReceitas(null, categoria, null, null, false, 1, Ordem.RANKING);
+        var busca = new BuscaReceitas(null, categoria, null, null, false, 0, 1, Ordem.RANKING);
         return receitas.buscar(busca, paginacao(0, limite)).itens();
     }
 

@@ -112,7 +112,13 @@ export async function searchRecipesPage(
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params))
     if (value !== undefined && value !== "") query.set(key, String(value));
-  return api<{ itens: RecipeDto[]; total: number }>(`/api/receitas?${query}`);
+  return api<{
+    itens: RecipeDto[];
+    pagina: number;
+    tamanho: number;
+    total: number;
+    totalPaginas: number;
+  }>(`/api/receitas?${query}`);
 }
 export async function getRecipe(id: string) {
   return toRecipe(await api<RecipeDto>(`/api/receitas/${id}`));

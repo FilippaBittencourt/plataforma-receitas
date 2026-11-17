@@ -1,8 +1,10 @@
 package br.com.cookie.api.receita;
 
 import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
+import java.util.Arrays;
 
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.data.jpa.domain.Specification;
@@ -16,12 +18,14 @@ import jakarta.persistence.criteria.Root;
 
 /** Filtros e ordenação da busca pública de receitas (só receitas aprovadas). */
 public record BuscaReceitas(String texto, String categoria, String ingrediente, Origem origem, boolean verificadas,
-        int minimoAvaliacoes, Ordem ordem) {
+        int taxaSucessoMinima, int minimoAvaliacoes, Ordem ordem) {
 
     public enum Ordem {
         RECENTES,
         MELHORES,
         MAIS_TESTADAS,
+        TAXA_SUCESSO,
+        MENOR_TEMPO,
         /** Usada no ranking: verificadas primeiro, depois a média e o volume de avaliações. */
         RANKING;
 
@@ -47,7 +51,15 @@ public record BuscaReceitas(String texto, String categoria, String ingrediente, 
                 filtros.add(hcb.ilike(root.get("titulo"), contem(texto), '\\'));
             }
             if (temValor(categoria)) {
-                filtros.add(cb.equal(root.get("categoria").get("slug"), categoria.trim()));
+                List<String> categorias = Arrays.stream(categoria.split(","))
+                        .map(String::trim)
+                        .filter(slug -> !slug.isEmpty())
+                        .toList();
+                if (categorias.size() == 1) {
+                    filtros.add(cb.equal(root.get("categoria").get("slug"), categorias.get(0)));
+                } else if (!categorias.isEmpty()) {
+                    filtros.add(root.get("categoria").get("slug").in(categorias));
+                }
             }
             if (origem != null) {
                 filtros.add(cb.equal(root.get("origem"), origem));
@@ -69,6 +81,10 @@ public record BuscaReceitas(String texto, String categoria, String ingrediente, 
             if (minimoAvaliacoes > 0) {
                 filtros.add(cb.ge(est.get("totalAvaliacoes"), minimoAvaliacoes));
             }
+            if (taxaSucessoMinima > 0) {
+                filtros.add(cb.ge(cb.coalesce(est.get("taxaSucesso"), BigDecimal.ZERO),
+                        BigDecimal.valueOf(taxaSucessoMinima, 2)));
+            }
 
             // A consulta de contagem da paginação não precisa (nem aceita bem) ORDER BY.
             if (query != null && !Long.class.equals(query.getResultType())
@@ -87,6 +103,11 @@ public record BuscaReceitas(String texto, String categoria, String ingrediente, 
             case RECENTES -> List.of(maisNovas, cb.desc(root.get("id")));
             case MELHORES -> List.of(cb.desc(media), cb.desc(total), maisNovas);
             case MAIS_TESTADAS -> List.of(cb.desc(total), cb.desc(media), maisNovas);
+            case TAXA_SUCESSO -> List.of(cb.desc(cb.coalesce(est.get("taxaSucesso"), BigDecimal.ZERO)),
+                    cb.desc(media), cb.desc(total), maisNovas);
+            case MENOR_TEMPO -> List.of(
+                    cb.asc(cb.<Integer>selectCase().when(cb.isNull(root.get("tempoPreparo")), 1).otherwise(0)),
+                    cb.asc(root.get("tempoPreparo")), maisNovas);
             case RANKING -> List.of(cb.desc(est.get("verificada")), cb.desc(media), cb.desc(total), maisNovas);
         };
     }
