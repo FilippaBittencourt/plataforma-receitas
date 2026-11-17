@@ -34,6 +34,7 @@ import type { Recipe } from "@/lib/mock-data";
 import { RecipePhotoPlaceholder } from "@/components/site/RecipePhotoPlaceholder";
 import { getRecipeIngredientSectionTitle, getRecipeSectionTitle } from "@/lib/recipe-steps";
 import { DeleteRecipeButton } from "@/components/site/DeleteRecipeButton";
+import { FavoriteButton } from "@/components/site/FavoriteButton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -295,6 +296,9 @@ function RecipePage() {
                 {recipe.title}
               </h1>
               <div className="flex shrink-0 items-center gap-1">
+                {recipe.status === "APROVADA" && (
+                  <FavoriteButton recipeId={recipe.id} className="h-9 w-9" />
+                )}
                 {(user?.id === recipe.authorId || user?.role === "moderador") && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

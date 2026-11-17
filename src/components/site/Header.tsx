@@ -41,6 +41,7 @@ export function Header() {
   const accountLinks = user
     ? [
       { to: "/perfil", label: "Meu perfil" },
+        ...(user.role !== "moderador" ? [{ to: "/favoritos", label: "Favoritos" } as const] : []),
       { to: "/configuracoes", label: "Configurações" },
       ...(user.role === "moderador" ? [{ to: "/admin", label: "Moderação" } as const] : []),
     ]

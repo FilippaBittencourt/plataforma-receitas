@@ -16,6 +16,7 @@ import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as CompartilharRouteImport } from './routes/compartilhar'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as EntrarRouteImport } from './routes/entrar'
+import { Route as FavoritosRouteImport } from './routes/favoritos'
 import { Route as PerfilRouteImport } from './routes/perfil'
 import { Route as PublicarRouteImport } from './routes/publicar'
 import { Route as RankingRouteImport } from './routes/ranking'
@@ -57,6 +58,11 @@ const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FavoritosRoute = FavoritosRouteImport.update({
+  id: '/favoritos',
+  path: '/favoritos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PerfilRoute = PerfilRouteImport.update({
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/compartilhar': typeof CompartilharRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/entrar': typeof EntrarRoute
+  '/favoritos': typeof FavoritosRoute
   '/perfil': typeof PerfilRoute
   '/publicar': typeof PublicarRoute
   '/ranking': typeof RankingRoute
@@ -119,6 +126,7 @@ export interface FileRoutesByTo {
   '/compartilhar': typeof CompartilharRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/entrar': typeof EntrarRoute
+  '/favoritos': typeof FavoritosRoute
   '/perfil': typeof PerfilRoute
   '/publicar': typeof PublicarRoute
   '/ranking': typeof RankingRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   '/compartilhar': typeof CompartilharRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/entrar': typeof EntrarRoute
+  '/favoritos': typeof FavoritosRoute
   '/perfil': typeof PerfilRoute
   '/publicar': typeof PublicarRoute
   '/ranking': typeof RankingRoute
@@ -154,6 +163,7 @@ export interface FileRouteTypes {
     | '/compartilhar'
     | '/configuracoes'
     | '/entrar'
+    | '/favoritos'
     | '/perfil'
     | '/publicar'
     | '/ranking'
@@ -170,6 +180,7 @@ export interface FileRouteTypes {
     | '/compartilhar'
     | '/configuracoes'
     | '/entrar'
+    | '/favoritos'
     | '/perfil'
     | '/publicar'
     | '/ranking'
@@ -186,6 +197,7 @@ export interface FileRouteTypes {
     | '/compartilhar'
     | '/configuracoes'
     | '/entrar'
+    | '/favoritos'
     | '/perfil'
     | '/publicar'
     | '/ranking'
@@ -203,6 +215,7 @@ export interface RootRouteChildren {
   CompartilharRoute: typeof CompartilharRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   EntrarRoute: typeof EntrarRoute
+  FavoritosRoute: typeof FavoritosRoute
   PerfilRoute: typeof PerfilRoute
   PublicarRoute: typeof PublicarRoute
   RankingRoute: typeof RankingRoute
@@ -261,6 +274,13 @@ declare module '@tanstack/react-router' {
       path: '/entrar'
       fullPath: '/entrar'
       preLoaderRoute: typeof EntrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/favoritos': {
+      id: '/favoritos'
+      path: '/favoritos'
+      fullPath: '/favoritos'
+      preLoaderRoute: typeof FavoritosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/perfil': {
@@ -323,6 +343,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompartilharRoute: CompartilharRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   EntrarRoute: EntrarRoute,
+  FavoritosRoute: FavoritosRoute,
   PerfilRoute: PerfilRoute,
   PublicarRoute: PublicarRoute,
   RankingRoute: RankingRoute,

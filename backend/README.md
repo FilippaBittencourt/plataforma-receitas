@@ -105,6 +105,8 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 | 🔑 | `DELETE /api/me` | Exclui a conta. As receitas continuam no site, sem autor. |
 | 🔑 | `GET /api/me/receitas` | Minhas receitas, inclusive pendentes e recusadas. |
 | 🔑 | `GET /api/me/avaliacoes` | Minhas avaliações. |
+| 🔑 | `GET /api/me/favoritos` | Receitas salvas nos favoritos, da mais recente para a mais antiga. |
+| 🔑 | `GET /api/me/favoritos/ids` | IDs das receitas salvas nos favoritos. |
 | 🔓 | `GET /api/usuarios/{nomeUsuario}` | Perfil público. |
 | 🔓 | `GET /api/usuarios/{nomeUsuario}/receitas` | Receitas aprovadas da pessoa. |
 
@@ -120,6 +122,9 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 | 🔑 | `POST /api/receitas/indicacoes` | Envia uma receita externa com link para a curadoria. |
 | 🔑 | `PUT /api/receitas/{id}` | Edita uma receita própria; a versão atualizada é publicada imediatamente. |
 | 🔑 | `DELETE /api/receitas/{id}` | Exclui (autor ou moderação). |
+| 🔑 | `PUT /api/receitas/{id}/favorito` | Salva a receita nos favoritos. |
+| 🔑 | `GET /api/receitas/{id}/favorito` | Informa se a receita está nos favoritos. |
+| 🔑 | `DELETE /api/receitas/{id}/favorito` | Remove a receita dos favoritos. |
 | 🔑 | `POST /api/assistente/receitas` | Pergunta ao assistente culinário; aceita contexto da receita aberta e histórico curto da conversa. |
 | 🔑 | `POST /api/receitas/{id}/avaliacao` | Registra uma avaliação; cada envio é uma nova experiência. Aceita `comentario` e `fotoResultado` opcionais. |
 | 🔑 | `GET /api/receitas/{id}/avaliacao` | Minha avaliação mais recente desta receita. |

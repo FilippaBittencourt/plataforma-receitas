@@ -65,7 +65,7 @@ export function RequireAuth({
         <Lock width={22} height={22} className="mx-auto text-caramel" />
         <h1 className="mt-4 text-2xl font-semibold text-foreground">Ação indisponível</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Contas de moderação cuidam da curadoria e não podem publicar, indicar, testar ou avaliar receitas.
+          Esta funcionalidade não está disponível para contas de moderação.
         </p>
         <Button asChild className="mt-6 rounded-full">
           <Link to="/admin">Ir para moderação</Link>

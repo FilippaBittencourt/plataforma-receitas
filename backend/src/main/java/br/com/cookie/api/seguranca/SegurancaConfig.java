@@ -44,6 +44,7 @@ public class SegurancaConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/cadastro", "/api/auth/login",
                                 "/api/auth/redefinir-senha").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/receitas/*/avaliacao").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/receitas/*/favorito").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/categorias/**", "/api/receitas/**", "/api/usuarios/**",
                                 "/uploads/**", "/demo/**").permitAll()
                         .requestMatchers("/api/moderacao/**").hasRole("ADMINISTRADOR")

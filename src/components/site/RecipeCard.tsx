@@ -4,10 +4,14 @@ import type { Recipe } from "@/lib/mock-data";
 import { Stars } from "./Stars";
 import { VerifiedBadge } from "./VerifiedBadge";
 import { RecipePhotoPlaceholder } from "./RecipePhotoPlaceholder";
+import { FavoriteButton } from "./FavoriteButton";
 
 export function RecipeCard({ recipe }: { recipe: Recipe }) {
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-lifted">
+      {recipe.status !== "PENDENTE" && (
+        <FavoriteButton recipeId={recipe.id} className="absolute right-3 top-3 z-10 h-10 w-10" />
+      )}
       <Link
         to="/receita/$recipeId"
         params={{ recipeId: recipe.id }}

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Check,
+  Heart,
   LogOut,
   Plus,
   Settings,
@@ -67,6 +68,13 @@ export function UserMenu({ user }: { user: Account }) {
             <User width={16} height={16} /> Meu perfil
           </Link>
         </DropdownMenuItem>
+        {user.role !== "moderador" && (
+          <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
+            <Link to="/favoritos">
+              <Heart width={16} height={16} /> Favoritos
+            </Link>
+          </DropdownMenuItem>
+        )}
         {user.role !== "moderador" && (
           <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
             <Link to="/publicar">
