@@ -1,7 +1,6 @@
 package br.com.cookie.api.comentario;
 
 import org.springframework.data.domain.Pageable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +13,6 @@ import br.com.cookie.api.comum.Pagina;
 import br.com.cookie.api.receita.ReceitaService;
 import br.com.cookie.api.usuario.Usuario;
 import br.com.cookie.api.usuario.UsuarioService;
-import br.com.cookie.api.email.EmailNotificacaoService.Atividade;
 
 @Service
 public class ComentarioService {
@@ -22,14 +20,11 @@ public class ComentarioService {
     private final ComentarioRepository comentarios;
     private final ReceitaService receitas;
     private final UsuarioService usuarios;
-    private final ApplicationEventPublisher eventos;
 
-    public ComentarioService(ComentarioRepository comentarios, ReceitaService receitas, UsuarioService usuarios,
-            ApplicationEventPublisher eventos) {
+    public ComentarioService(ComentarioRepository comentarios, ReceitaService receitas, UsuarioService usuarios) {
         this.comentarios = comentarios;
         this.receitas = receitas;
         this.usuarios = usuarios;
-        this.eventos = eventos;
     }
 
     @Transactional(readOnly = true)
@@ -55,10 +50,6 @@ public class ComentarioService {
         var receita = receitas.aprovada(idReceita);
         String foto = req.fotoResultado() == null || req.fotoResultado().isBlank() ? null : req.fotoResultado().trim();
         var comentario = comentarios.save(new Comentario(receita, usuario, req.texto().trim(), foto));
-        Usuario autor = receita.getAutor();
-        if (autor != null && !autor.getId().equals(usuario.getId()) && autor.isNotifComentarios()) {
-            eventos.publishEvent(new Atividade(autor.getEmail(), autor.getNome(), usuario.getNome(), receita.getTitulo(), receita.getId(), "comentario"));
-        }
         return ComentarioResponse.de(comentario);
     }
 

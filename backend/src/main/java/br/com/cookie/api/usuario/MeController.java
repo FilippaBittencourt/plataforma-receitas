@@ -23,7 +23,6 @@ import br.com.cookie.api.usuario.UsuarioDtos.AlterarEmailRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.AlterarSenhaRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.AtualizarPerfilRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.CodigoRecuperacaoResponse;
-import br.com.cookie.api.usuario.UsuarioDtos.Notificacoes;
 import br.com.cookie.api.usuario.UsuarioDtos.PerfilResponse;
 import jakarta.validation.Valid;
 
@@ -61,11 +60,6 @@ public class MeController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void alterarSenha(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody AlterarSenhaRequest req) {
         usuarios.alterarSenha(jwt, req);
-    }
-
-    @PutMapping("/notificacoes")
-    PerfilResponse notificacoes(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody Notificacoes req) {
-        return usuarios.atualizarNotificacoes(jwt, req);
     }
 
     @PostMapping("/codigo-recuperacao")

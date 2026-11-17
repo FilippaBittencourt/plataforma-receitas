@@ -67,8 +67,6 @@ Senhas são guardadas com BCrypt. Em produção, defina a variável `JWT_SECRET`
 
 Não depende de e-mail. No cadastro, a pessoa recebe um código de recuperação que deve guardar. Contas antigas recebem o código no próximo login após a migração. O código é armazenado somente como hash, pode ser usado uma vez e é substituído por outro após redefinir a senha. Se a pessoa ainda estiver conectada e perder o código, pode gerar outro em Configurações.
 
-O mesmo SMTP envia avisos de novas avaliações e comentários às pessoas autoras, conforme suas preferências. Falhas de envio ficam registradas no log e não desfazem comentários ou avaliações.
-
 ### Implantação com arquivos persistentes
 
 O perfil de implantação inclui um volume Docker nomeado para os uploads e outro para o banco. Na pasta `backend`, copie `.env.example` para `.env`, preencha os segredos e as origens públicas e rode:
@@ -83,7 +81,7 @@ O volume `uploads-dados` mantém as fotos entre recriações dos containers. Em 
 
 O Compose inclui um proxy Caddy opcional com certificado TLS automático. Aponte o DNS do domínio da API para o servidor, configure `API_DOMAIN` em `.env` e suba com `docker compose -f compose.deploy.yaml --profile https up -d --build`. Libere as portas 80 e 443 no firewall. Para não expor a API em HTTP público, mantenha `API_PORT` acessível somente no host/local (ou remova o mapeamento de portas do serviço `api`); o Caddy encaminha internamente para a API. O HTTPS do site frontend deve ser configurado também no provedor que hospeda o frontend.
 
-Nunca versione o `.env` preenchido nem credenciais SMTP.
+Nunca versione o `.env` preenchido nem credenciais.
 
 ## Endpoints
 
@@ -100,7 +98,6 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 | 🔑 | `PATCH /api/me` | Atualiza nome, nome de usuário, bio e foto. |
 | 🔑 | `PUT /api/me/email` | Troca o e-mail. |
 | 🔑 | `PUT /api/me/senha` | Troca a senha (pede a atual). |
-| 🔑 | `PUT /api/me/notificacoes` | Preferências de notificação. |
 | 🔑 | `POST /api/me/codigo-recuperacao` | Gera um código novo e invalida o anterior. |
 | 🔑 | `DELETE /api/me` | Exclui a conta. As receitas continuam no site, sem autor. |
 | 🔑 | `GET /api/me/receitas` | Minhas receitas, inclusive pendentes e recusadas. |

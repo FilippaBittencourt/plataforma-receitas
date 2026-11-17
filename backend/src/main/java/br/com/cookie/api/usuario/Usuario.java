@@ -53,15 +53,6 @@ public class Usuario {
     @Column(nullable = false, length = 20)
     private StatusUsuario status = StatusUsuario.ATIVO;
 
-    @Column(name = "notif_avaliacoes", nullable = false)
-    private boolean notifAvaliacoes = true;
-
-    @Column(name = "notif_comentarios", nullable = false)
-    private boolean notifComentarios = true;
-
-    @Column(name = "notif_novidades", nullable = false)
-    private boolean notifNovidades = false;
-
     protected Usuario() {
     }
 
@@ -162,27 +153,4 @@ public class Usuario {
         this.status = status;
     }
 
-    public boolean isNotifAvaliacoes() {
-        return notifAvaliacoes;
-    }
-
-    public void setNotifAvaliacoes(boolean notifAvaliacoes) {
-        this.notifAvaliacoes = notifAvaliacoes;
-    }
-
-    public boolean isNotifComentarios() {
-        return notifComentarios;
-    }
-
-    public void setNotifComentarios(boolean notifComentarios) {
-        this.notifComentarios = notifComentarios;
-    }
-
-    public boolean isNotifNovidades() {
-        return notifNovidades;
-    }
-
-    public void setNotifNovidades(boolean notifNovidades) {
-        this.notifNovidades = notifNovidades;
-    }
 }
