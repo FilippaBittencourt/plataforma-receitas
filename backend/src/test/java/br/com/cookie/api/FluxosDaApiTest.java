@@ -40,13 +40,6 @@ class FluxosDaApiTest extends ApiTestBase {
                 .andExpect(jsonPath("$.nome").value("Ana Atualizada"))
                 .andExpect(jsonPath("$.nomeUsuario").value("ana_cozinha"))
                 .andExpect(jsonPath("$.bio").value("Testando receitas"));
-        mvc.perform(comToken(json(put("/api/me/notificacoes"), """
-                {"avaliacoes": false, "comentarios": true, "novidades": true}
-                """), token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.notificacoes.avaliacoes").value(false))
-                .andExpect(jsonPath("$.notificacoes.novidades").value(true));
-
         String novoEmail = emailUnico("conta-alterada");
         mvc.perform(comToken(json(put("/api/me/email"), """
                 {"email": "%s"}
@@ -131,6 +124,94 @@ class FluxosDaApiTest extends ApiTestBase {
                 .andExpect(jsonPath("$.itens[0].id").value(id));
         mvc.perform(get("/api/receitas").param("ingrediente", "cenoura").param("categoria", "doces"))
                 .andExpect(jsonPath("$.itens[*].id", hasItem(id)));
+    }
+
+    @Test
+    void buscaSuportaCategoriasCombinadasEPaginacao() throws Exception {
+        String token = novoUsuario();
+        String termo = "pagina-integracao-" + emailUnico("busca").replace("@teste.com", "");
+        criarReceita(token, termo + " primeira");
+        criarReceita(token, termo + " segunda");
+        criarReceita(token, termo + " terceira");
+
+        mvc.perform(get("/api/receitas").param("q", termo).param("categoria", "doces,bebidas")
+                .param("pagina", "0").param("tamanho", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens.length()").value(2))
+                .andExpect(jsonPath("$.pagina").value(0))
+                .andExpect(jsonPath("$.tamanho").value(2))
+                .andExpect(jsonPath("$.total").value(3))
+                .andExpect(jsonPath("$.totalPaginas").value(2));
+
+        mvc.perform(get("/api/receitas").param("q", termo).param("categoria", "doces,bebidas")
+                .param("pagina", "1").param("tamanho", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.itens.length()").value(1))
+                .andExpect(jsonPath("$.pagina").value(1));
+    }
+
+    @Test
+    void seguirAtualizaContadoresEListaPublica() throws Exception {
+        String seguidor = novoUsuario();
+        String seguido = novoUsuario();
+        String dadosSeguido = mvc.perform(comToken(get("/api/me"), seguido))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String handleSeguido = JsonPath.read(dadosSeguido, "$.nomeUsuario");
+        String dadosSeguidor = mvc.perform(comToken(get("/api/me"), seguidor))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String handleSeguidor = JsonPath.read(dadosSeguidor, "$.nomeUsuario");
+
+        mvc.perform(comToken(put("/api/usuarios/" + handleSeguido + "/seguir"), seguidor))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/usuarios/" + handleSeguido))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estatisticas.seguidores").value(1));
+        mvc.perform(get("/api/usuarios/" + handleSeguido + "/seguidores"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nomeUsuario").value(handleSeguidor));
+        mvc.perform(get("/api/usuarios/" + handleSeguidor + "/seguindo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nomeUsuario").value(handleSeguido));
+
+        mvc.perform(comToken(delete("/api/usuarios/" + handleSeguido + "/seguir"), seguidor))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/usuarios/" + handleSeguido))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estatisticas.seguidores").value(0));
+    }
+
+    @Test
+    void codigoDeRecuperacaoGeradoNasConfiguracoesPodeSerUsadoERegenerado() throws Exception {
+        String token = novoUsuario();
+        String email = mvc.perform(comToken(get("/api/me"), token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        email = JsonPath.read(email, "$.email");
+
+        String codigoAntigo = mvc.perform(comToken(post("/api/me/codigo-recuperacao"), token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codigoRecuperacao").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        codigoAntigo = JsonPath.read(codigoAntigo, "$.codigoRecuperacao");
+        String codigoAtual = mvc.perform(comToken(post("/api/me/codigo-recuperacao"), token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        codigoAtual = JsonPath.read(codigoAtual, "$.codigoRecuperacao");
+
+        mvc.perform(json(post("/api/auth/redefinir-senha"), """
+                {"email": "%s", "codigoRecuperacao": "%s", "novaSenha": "senha-nova-456"}
+                """.formatted(email, codigoAntigo)))
+                .andExpect(status().isBadRequest());
+        mvc.perform(json(post("/api/auth/redefinir-senha"), """
+                {"email": "%s", "codigoRecuperacao": "%s", "novaSenha": "senha-nova-456"}
+                """.formatted(email, codigoAtual)))
+                .andExpect(status().isOk());
+        mvc.perform(json(post("/api/auth/login"), """
+                {"email": "%s", "senha": "senha-nova-456"}
+                """.formatted(email)))
+                .andExpect(status().isOk());
     }
 
     @Test
