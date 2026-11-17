@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent, type ReactNode } from "react";
-import { ImagePlus, KeyRound } from "lucide-react";
+import { Copy, Download, ImagePlus, KeyRound } from "lucide-react";
 import { toast } from "@/lib/feedback";
 import { FieldError, PasswordInput } from "@/components/site/PasswordInput";
 import { RequireAuth } from "@/components/site/RequireAuth";
@@ -19,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/use-auth";
 import type { Account } from "@/lib/mock-data";
@@ -30,7 +29,7 @@ export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
       { title: "Configurações — Mums!" },
-      { name: "description", content: "Edite seu perfil, e-mail, senha e notificações." },
+      { name: "description", content: "Edite seu perfil, e-mail e senha." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -83,7 +82,6 @@ function Settings() {
         <EmailForm user={user} />
         <PasswordForm />
         <RecoveryCodeForm />
-        <NotificationsForm user={user} />
         <DangerZone user={user} />
       </div>
     </div>
@@ -106,10 +104,30 @@ function RecoveryCodeForm() {
       setBusy(false);
     }
   };
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      toast.success("Código copiado");
+    } catch {
+      toast.error("Não foi possível copiar o código. Selecione e copie manualmente.");
+    }
+  };
+  const downloadCode = () => {
+    const file = new Blob([`Código de recuperação da Mums!\n\n${codigo}\n`], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "codigo-de-recuperacao-mums.txt";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success("Arquivo do código baixado");
+  };
   return (
     <Section
       title="Código de recuperação"
-      description="Use o código para redefinir sua senha se não conseguir entrar. Gerar outro invalida o código anterior."
+      description="Guarde este código em um local seguro. Se não conseguir entrar, use-o para redefinir sua senha. Gerar outro invalida o código anterior."
     >
       <div className="flex flex-wrap items-center gap-3">
         <Button
@@ -122,16 +140,30 @@ function RecoveryCodeForm() {
           <KeyRound width={15} height={15} />
           {busy ? "Gerando…" : "Gerar novo código"}
         </Button>
-        {codigo && (
-          <code className="select-all rounded-xl border border-border bg-muted px-3 py-2 font-mono font-bold tracking-wider">
-            {codigo}
-          </code>
-        )}
       </div>
       {codigo && (
-        <p role="status" className="mt-3 text-sm text-muted-foreground">
-          Guarde este código agora. Ele não poderá ser consultado novamente.
-        </p>
+        <div className="mt-4 space-y-3">
+          <code className="block select-all break-all rounded-xl border border-border bg-muted px-4 py-3 text-center font-mono text-lg font-bold tracking-wider">
+            {codigo}
+          </code>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => void copyCode()}
+            >
+              <Copy width={15} height={15} /> Copiar código
+            </Button>
+            <Button type="button" variant="outline" className="rounded-full" onClick={downloadCode}>
+              <Download width={15} height={15} /> Baixar arquivo
+            </Button>
+          </div>
+          <p role="status" className="text-sm text-muted-foreground">
+            O código só pode ser exibido quando é gerado. Copie ou baixe agora; ele não pode ser
+            recuperado depois.
+          </p>
+        </div>
       )}
     </Section>
   );
@@ -364,62 +396,6 @@ function PasswordForm() {
           </Button>
         </div>
       </form>
-    </Section>
-  );
-}
-
-const notificationOptions: { key: keyof Account["notifications"]; label: string; hint: string }[] =
-  [
-    {
-      key: "avaliacoes",
-      label: "Avaliações nas minhas receitas",
-      hint: "Quando alguém testar e avaliar uma receita sua.",
-    },
-    {
-      key: "comentarios",
-      label: "Respostas e comentários",
-      hint: "Quando responderem um comentário seu.",
-    },
-  ];
-
-function NotificationsForm({ user }: { user: Account }) {
-  const { updateUser } = useAuth();
-
-  return (
-    <Section title="Notificações por e-mail" description="Escolha o que você quer receber.">
-      <ul className="divide-y divide-border">
-        {notificationOptions.map((opt) => (
-          <li
-            key={opt.key}
-            className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0"
-          >
-            <div>
-              <Label htmlFor={`notif-${opt.key}`} className="text-sm font-medium text-foreground">
-                {opt.label}
-              </Label>
-              <p className="mt-0.5 text-xs text-muted-foreground">{opt.hint}</p>
-            </div>
-            <Switch
-              id={`notif-${opt.key}`}
-              checked={user.notifications[opt.key]}
-              onCheckedChange={async (checked) => {
-                const next = { ...user.notifications, [opt.key]: checked };
-                try {
-                  await api("/api/me/notificacoes", { method: "PUT", body: JSON.stringify(next) });
-                  toast.success("Preferência salva");
-                  window.location.reload();
-                } catch (error) {
-                  toast.error(
-                    error instanceof Error
-                      ? error.message
-                      : "Não foi possível salvar a preferência.",
-                  );
-                }
-              }}
-            />
-          </li>
-        ))}
-      </ul>
     </Section>
   );
 }
