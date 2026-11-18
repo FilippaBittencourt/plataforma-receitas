@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Ban, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { toast } from "@/lib/feedback";
 import { RequireAuth } from "@/components/site/RequireAuth";
@@ -42,6 +42,7 @@ type Summary = {
   recusadasHoje: number;
   denunciasAbertas: number;
 };
+type PageResult<T> = { itens: T[]; pagina: number; total: number; totalPaginas: number };
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -69,10 +70,30 @@ function AdminPage() {
 }
 
 function Moderation() {
-  const [queue, setQueue] = useState<QueueItem[]>([]);
-  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [queue, setQueue] = useState<PageResult<QueueItem>>({
+    itens: [],
+    pagina: 0,
+    total: 0,
+    totalPaginas: 0,
+  });
+  const [users, setUsers] = useState<PageResult<ManagedUser>>({
+    itens: [],
+    pagina: 0,
+    total: 0,
+    totalPaginas: 0,
+  });
+  const [queuePage, setQueuePage] = useState(0);
+  const [usersPage, setUsersPage] = useState(0);
   const [userQuery, setUserQuery] = useState("");
-  const [reports, setReports] = useState<Report[]>([]);
+  const [debouncedUserQuery, setDebouncedUserQuery] = useState("");
+  const reloadSequence = useRef(0);
+  const [reports, setReports] = useState<PageResult<Report>>({
+    itens: [],
+    pagina: 0,
+    total: 0,
+    totalPaginas: 0,
+  });
+  const [reportsPage, setReportsPage] = useState(0);
   const [summary, setSummary] = useState<Summary>({
     receitasPendentes: 0,
     aprovadasHoje: 0,
@@ -80,23 +101,32 @@ function Moderation() {
     denunciasAbertas: 0,
   });
   const [error, setError] = useState("");
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedUserQuery(userQuery.trim()), 300);
+    return () => window.clearTimeout(timeout);
+  }, [userQuery]);
   const reload = useCallback(async () => {
+    const sequence = ++reloadSequence.current;
     try {
       const [q, u, d, s] = await Promise.all([
-        api<QueueItem[]>("/api/moderacao/receitas"),
-        api<ManagedUser[]>(`/api/moderacao/usuarios/gestao?q=${encodeURIComponent(userQuery)}`),
-        api<Report[]>("/api/moderacao/denuncias"),
+        api<PageResult<QueueItem>>(`/api/moderacao/receitas?pagina=${queuePage}&tamanho=20`),
+        api<PageResult<ManagedUser>>(
+          `/api/moderacao/usuarios/gestao?q=${encodeURIComponent(debouncedUserQuery)}&pagina=${usersPage}&tamanho=20`,
+        ),
+        api<PageResult<Report>>(`/api/moderacao/denuncias?pagina=${reportsPage}&tamanho=20`),
         api<Summary>("/api/moderacao/resumo"),
       ]);
+      if (sequence !== reloadSequence.current) return;
       setQueue(q);
       setUsers(u);
       setReports(d);
       setSummary(s);
       setError("");
     } catch (e) {
+      if (sequence !== reloadSequence.current) return;
       setError(e instanceof Error ? e.message : "Não foi possível carregar a moderação.");
     }
-  }, [userQuery]);
+  }, [debouncedUserQuery, queuePage, reportsPage, usersPage]);
   useEffect(() => {
     void reload();
   }, [reload]);
@@ -130,9 +160,9 @@ function Moderation() {
   };
   const decideReport = async (report: Report, hide: boolean) => {
     try {
-      if (report.idComentario && hide)
-        await api(`/api/moderacao/comentarios/${report.idComentario}/ocultar`, { method: "POST" });
-      await api(`/api/moderacao/denuncias/${report.id}/resolver`, { method: "POST" });
+      await api(`/api/moderacao/denuncias/${report.id}/resolver?ocultarComentario=${hide}`, {
+        method: "POST",
+      });
       toast.success("Denúncia resolvida");
       await reload();
     } catch (e) {
@@ -194,13 +224,13 @@ function Moderation() {
       >
         <TabsList className="rounded-full bg-secondary p-1">
           <TabsTrigger value="fila" className="rounded-full px-4">
-            Fila de revisão ({queue.length})
+            Fila de revisão ({summary.receitasPendentes})
           </TabsTrigger>
           <TabsTrigger value="denuncias" className="rounded-full px-4">
-            Denúncias ({reports.length})
+            Denúncias ({summary.denunciasAbertas})
           </TabsTrigger>
           <TabsTrigger value="usuarios" className="rounded-full px-4">
-            Usuários ({users.length})
+            Usuários ({users.total})
           </TabsTrigger>
         </TabsList>
         {error && (
@@ -211,13 +241,13 @@ function Moderation() {
 
         <TabsContent value="fila" className="mt-6">
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
-            {queue.length === 0 ? (
+            {queue.itens.length === 0 ? (
               <p className="px-6 py-12 text-center text-sm text-muted-foreground">
                 Nada pendente. Fila zerada.
               </p>
             ) : (
               <ul className="divide-y divide-border">
-                {queue.map((item) => (
+                {queue.itens.map((item) => (
                   <li key={item.id} className="flex flex-wrap items-center gap-4 px-6 py-5">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -276,17 +306,18 @@ function Moderation() {
               </ul>
             )}
           </div>
+          <PaginationBar page={queuePage} totalPages={queue.totalPaginas} onChange={setQueuePage} />
         </TabsContent>
 
         <TabsContent value="denuncias" className="mt-6">
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
-            {reports.length === 0 ? (
+            {reports.itens.length === 0 ? (
               <p className="px-6 py-12 text-center text-sm text-muted-foreground">
                 Nenhuma denúncia aberta.
               </p>
             ) : (
               <ul className="divide-y divide-border">
-                {reports.map((report) => (
+                {reports.itens.map((report) => (
                   <li key={report.id} className="flex flex-wrap items-center gap-4 px-6 py-5">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium">
@@ -329,6 +360,11 @@ function Moderation() {
               </ul>
             )}
           </div>
+          <PaginationBar
+            page={reportsPage}
+            totalPages={reports.totalPaginas}
+            onChange={setReportsPage}
+          />
         </TabsContent>
 
         <TabsContent value="usuarios" className="mt-6">
@@ -338,12 +374,9 @@ function Moderation() {
           <input
             id="busca-usuarios"
             value={userQuery}
-            onChange={(event) => setUserQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void reload();
-              }
+            onChange={(event) => {
+              setUsersPage(0);
+              setUserQuery(event.target.value);
             }}
             placeholder="Buscar por nome, usuário ou e-mail"
             className="mb-4 h-11 w-full rounded-xl border border-border bg-card px-4 text-sm outline-none focus:border-ring"
@@ -353,14 +386,16 @@ function Moderation() {
               variant="outline"
               size="sm"
               className="rounded-full"
-              onClick={() => void reload()}
+              onClick={() => {
+                setDebouncedUserQuery(userQuery.trim());
+              }}
             >
               Buscar
             </Button>
           </div>
           <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
             <ul className="divide-y divide-border">
-              {users.map((u) => (
+              {users.itens.map((u) => (
                 <li key={u.id} className="flex flex-wrap items-center gap-4 px-6 py-5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -400,8 +435,39 @@ function Moderation() {
               ))}
             </ul>
           </div>
+          <PaginationBar page={usersPage} totalPages={users.totalPaginas} onChange={setUsersPage} />
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function PaginationBar({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  if (totalPages < 2) return null;
+  return (
+    <div className="mt-4 flex items-center justify-center gap-3">
+      <Button variant="outline" size="sm" disabled={page === 0} onClick={() => onChange(page - 1)}>
+        Anterior
+      </Button>
+      <span className="text-sm text-muted-foreground">
+        Página {page + 1} de {totalPages}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page + 1 >= totalPages}
+        onClick={() => onChange(page + 1)}
+      >
+        Próxima
+      </Button>
     </div>
   );
 }

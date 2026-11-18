@@ -1,6 +1,7 @@
 package br.com.cookie.api.moderacao;
 
-import java.util.List;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +22,7 @@ import br.com.cookie.api.moderacao.ModeracaoDtos.UsuarioDenunciado;
 import br.com.cookie.api.moderacao.ModeracaoDtos.UsuarioGestao;
 import br.com.cookie.api.receita.StatusReceita;
 import br.com.cookie.api.usuario.StatusUsuario;
+import br.com.cookie.api.comum.Pagina;
 
 /** Área da moderação. O acesso exige papel ADMINISTRADOR (ver SegurancaConfig). */
 @RestController
@@ -39,8 +41,9 @@ public class ModeracaoController {
     }
 
     @GetMapping("/receitas")
-    List<ReceitaNaFila> fila() {
-        return moderacao.fila();
+    Pagina<ReceitaNaFila> fila(@RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "20") int tamanho) {
+        return moderacao.fila(pageRequest(pagina, tamanho));
     }
 
     @PostMapping("/receitas/{id}/aprovar")
@@ -68,24 +71,28 @@ public class ModeracaoController {
     }
 
     @GetMapping("/denuncias")
-    List<DenunciaResponse> denuncias() {
-        return moderacao.denunciasAbertas();
+    Pagina<DenunciaResponse> denuncias(@RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "20") int tamanho) {
+        return moderacao.denunciasAbertas(pageRequest(pagina, tamanho));
     }
 
     @PostMapping("/denuncias/{id}/resolver")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void resolver(@PathVariable Integer id) {
-        moderacao.resolverDenuncia(id);
+    void resolver(@PathVariable Integer id, @RequestParam(defaultValue = "false") boolean ocultarComentario) {
+        moderacao.resolverDenuncia(id, ocultarComentario);
     }
 
     @GetMapping("/usuarios")
-    List<UsuarioDenunciado> usuariosDenunciados() {
-        return moderacao.usuariosDenunciados();
+    Pagina<UsuarioDenunciado> usuariosDenunciados(@RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "20") int tamanho) {
+        return moderacao.usuariosDenunciados(pageRequest(pagina, tamanho));
     }
 
     @GetMapping("/usuarios/gestao")
-    List<UsuarioGestao> usuariosParaGestao(@RequestParam(required = false) String q) {
-        return moderacao.usuariosParaGestao(q);
+    Pagina<UsuarioGestao> usuariosParaGestao(@RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "0") int pagina, @RequestParam(defaultValue = "20") int tamanho) {
+        return moderacao.usuariosParaGestao(q, PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50),
+                Sort.by(Sort.Order.asc("nome").ignoreCase())));
     }
 
     @PostMapping("/usuarios/{id}/suspender")
@@ -98,5 +105,9 @@ public class ModeracaoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void reativar(@AuthenticationPrincipal Jwt jwt, @PathVariable Integer id) {
         moderacao.mudarStatusUsuario(jwt, id, StatusUsuario.ATIVO);
+    }
+
+    private static PageRequest pageRequest(int pagina, int tamanho) {
+        return PageRequest.of(Math.max(0, pagina), Math.clamp(tamanho, 1, 50));
     }
 }

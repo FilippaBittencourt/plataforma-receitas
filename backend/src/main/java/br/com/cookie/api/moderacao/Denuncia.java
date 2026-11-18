@@ -26,13 +26,25 @@ public class Denuncia {
     @Column(name = "id_denuncia")
     private Integer id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_denunciante", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_denunciante")
     private Usuario denunciante;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_usuario_denunciado", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_usuario_denunciado")
     private Usuario denunciado;
+
+    @Column(name = "nome_denunciante", nullable = false, length = 150)
+    private String nomeDenunciante;
+
+    @Column(name = "nome_usuario_denunciante", nullable = false, length = 30)
+    private String nomeUsuarioDenunciante;
+
+    @Column(name = "nome_denunciado", nullable = false, length = 150)
+    private String nomeDenunciado;
+
+    @Column(name = "nome_usuario_denunciado", nullable = false, length = 30)
+    private String nomeUsuarioDenunciado;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_comentario")
@@ -54,6 +66,10 @@ public class Denuncia {
     public Denuncia(Usuario denunciante, Usuario denunciado, Comentario comentario, String motivo) {
         this.denunciante = denunciante;
         this.denunciado = denunciado;
+        this.nomeDenunciante = denunciante.getNome();
+        this.nomeUsuarioDenunciante = denunciante.getNomeUsuario();
+        this.nomeDenunciado = denunciado.getNome();
+        this.nomeUsuarioDenunciado = denunciado.getNomeUsuario();
         this.comentario = comentario;
         this.motivo = motivo;
     }
@@ -75,6 +91,22 @@ public class Denuncia {
 
     public Usuario getDenunciado() {
         return denunciado;
+    }
+
+    public String getNomeDenunciante() {
+        return nomeDenunciante;
+    }
+
+    public String getNomeUsuarioDenunciante() {
+        return nomeUsuarioDenunciante;
+    }
+
+    public String getNomeDenunciado() {
+        return nomeDenunciado;
+    }
+
+    public String getNomeUsuarioDenunciado() {
+        return nomeUsuarioDenunciado;
     }
 
     public Comentario getComentario() {
