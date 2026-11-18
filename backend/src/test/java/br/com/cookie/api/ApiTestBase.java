@@ -47,13 +47,17 @@ public abstract class ApiTestBase {
         return req.header("Authorization", "Bearer " + token);
     }
 
+    protected static String tokenDoCookie(String header) {
+        return header.substring(header.indexOf('=') + 1, header.indexOf(';'));
+    }
+
     protected String cadastrar(String nome, String email) throws Exception {
-        String corpo = mvc.perform(json(post("/api/auth/cadastro"), """
+        var response = mvc.perform(json(post("/api/auth/cadastro"), """
                 {"nome": "%s", "email": "%s", "senha": "senha-forte-123"}
                 """.formatted(nome, email)))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(corpo, "$.token");
+                .andReturn().getResponse();
+        return tokenDoCookie(response.getHeader("Set-Cookie"));
     }
 
     protected String novoUsuario() throws Exception {
@@ -61,12 +65,12 @@ public abstract class ApiTestBase {
     }
 
     protected String entrar(String email) throws Exception {
-        String corpo = mvc.perform(json(post("/api/auth/login"), """
+        var response = mvc.perform(json(post("/api/auth/login"), """
                 {"email": "%s", "senha": "senha-forte-123"}
                 """.formatted(email)))
                 .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(corpo, "$.token");
+                .andReturn().getResponse();
+        return tokenDoCookie(response.getHeader("Set-Cookie"));
     }
 
     protected String novoModerador() throws Exception {
