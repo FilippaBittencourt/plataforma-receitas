@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.cookie.api.avaliacao.AvaliacaoRepository;
 import br.com.cookie.api.comum.ApiException;
+import br.com.cookie.api.moderacao.DenunciaRepository;
 import br.com.cookie.api.receita.ReceitaRepository;
 import br.com.cookie.api.receita.StatusReceita;
 import br.com.cookie.api.seguranca.TokenService;
@@ -34,10 +35,12 @@ public class UsuarioService {
     private final PasswordEncoder senhas;
     private final TokenService tokens;
     private final CodigoRecuperacaoService codigosRecuperacao;
+    private final DenunciaRepository denuncias;
 
     public UsuarioService(UsuarioRepository usuarios, SeguidorRepository seguidores, ReceitaRepository receitas,
             AvaliacaoRepository avaliacoes,
-            PasswordEncoder senhas, TokenService tokens, CodigoRecuperacaoService codigosRecuperacao) {
+            PasswordEncoder senhas, TokenService tokens, CodigoRecuperacaoService codigosRecuperacao,
+            DenunciaRepository denuncias) {
         this.usuarios = usuarios;
         this.seguidores = seguidores;
         this.receitas = receitas;
@@ -45,6 +48,7 @@ public class UsuarioService {
         this.senhas = senhas;
         this.tokens = tokens;
         this.codigosRecuperacao = codigosRecuperacao;
+        this.denuncias = denuncias;
     }
 
     /** Dono do token. Se a conta foi excluída depois do login, o token deixa de valer. */
@@ -105,12 +109,13 @@ public class UsuarioService {
 
     @Transactional
     public CodigoRecuperacaoResponse redefinirSenha(UsuarioDtos.RedefinirSenhaRequest req) {
-        Usuario usuario = usuarios.findByEmail(normalizarEmail(req.email()))
+        Usuario usuario = usuarios.findByEmailForUpdate(normalizarEmail(req.email()))
                 .orElseThrow(() -> ApiException.invalido("E-mail ou código de recuperação inválido."));
         if (!codigosRecuperacao.confere(req.codigoRecuperacao(), usuario.getCodigoRecuperacaoHash())) {
             throw ApiException.invalido("E-mail ou código de recuperação inválido.");
         }
         usuario.setSenhaHash(senhas.encode(req.novaSenha()));
+        usuario.invalidarSessoes();
         String novoCodigo = codigosRecuperacao.gerar();
         usuario.setCodigoRecuperacaoHash(codigosRecuperacao.hash(novoCodigo));
         usuarios.save(usuario);
@@ -157,8 +162,8 @@ public class UsuarioService {
     }
 
     @Transactional
-    public void alterarSenha(Jwt jwt, AlterarSenhaRequest req) {
-        Usuario usuario = logado(jwt);
+    public TokenResponse alterarSenha(Jwt jwt, AlterarSenhaRequest req) {
+        Usuario usuario = ativo(jwt);
         if (!senhas.matches(req.senhaAtual(), usuario.getSenhaHash())) {
             throw ApiException.invalido("A senha atual está incorreta.");
         }
@@ -166,16 +171,20 @@ public class UsuarioService {
             throw ApiException.invalido("A nova senha precisa ser diferente da atual.");
         }
         usuario.setSenhaHash(senhas.encode(req.novaSenha()));
-        usuarios.save(usuario);
+        usuario.invalidarSessoes();
+        return emitirToken(usuarios.save(usuario), null);
     }
 
     /**
-     * Exclui a conta. O banco cuida do resto: avaliações, comentários e denúncias da pessoa são apagados
-     * (CASCADE) e as receitas publicadas ficam no site sem autor (SET NULL).
+     * Exclui a conta. O banco remove seus dados de atividade e preserva receitas e denúncias
+     * com os vínculos pessoais removidos.
      */
     @Transactional
     public void excluir(Jwt jwt) {
-        usuarios.deleteById(logado(jwt).getId());
+        Integer id = ativo(jwt).getId();
+        denuncias.anonimizarDenunciante(id);
+        denuncias.anonimizarDenunciado(id);
+        usuarios.deleteById(id);
     }
 
     @Transactional(readOnly = true)

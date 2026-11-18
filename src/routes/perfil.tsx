@@ -163,12 +163,15 @@ function PublishedRecipeCard({
 }
 
 function Profile() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [published, setPublished] = useState<
     { id: string; title: string; status: string; fotoPrincipal?: string | null; recipe?: Recipe }[]
   >([]);
   const [tested, setTested] = useState<Recipe[]>([]);
   const [error, setError] = useState("");
+  useEffect(() => {
+    void refreshUser().catch(() => undefined);
+  }, [refreshUser, user?.id]);
   useEffect(() => {
     if (user?.role === "moderador") return;
     let active = true;

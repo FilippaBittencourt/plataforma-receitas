@@ -15,6 +15,7 @@ export type AuthContextValue = {
   logout: () => void;
   switchAccount: (id: string) => void;
   updateUser: (patch: Partial<Omit<Account, "id" | "role">>) => Promise<void>;
+  refreshUser: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   emailInUse: (email: string) => boolean;
 };

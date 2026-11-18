@@ -3,6 +3,7 @@ package br.com.cookie.api.usuario;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,7 +25,9 @@ import br.com.cookie.api.usuario.UsuarioDtos.AlterarSenhaRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.AtualizarPerfilRequest;
 import br.com.cookie.api.usuario.UsuarioDtos.CodigoRecuperacaoResponse;
 import br.com.cookie.api.usuario.UsuarioDtos.PerfilResponse;
+import br.com.cookie.api.seguranca.SessionCookieService;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletResponse;
 
 /** Conta da pessoa logada (tela de perfil e de configurações). */
 @RestController
@@ -34,11 +37,14 @@ public class MeController {
     private final UsuarioService usuarios;
     private final ReceitaService receitas;
     private final AvaliacaoService avaliacoes;
+    private final SessionCookieService cookies;
 
-    public MeController(UsuarioService usuarios, ReceitaService receitas, AvaliacaoService avaliacoes) {
+    public MeController(UsuarioService usuarios, ReceitaService receitas, AvaliacaoService avaliacoes,
+            SessionCookieService cookies) {
         this.usuarios = usuarios;
         this.receitas = receitas;
         this.avaliacoes = avaliacoes;
+        this.cookies = cookies;
     }
 
     @GetMapping
@@ -57,9 +63,11 @@ public class MeController {
     }
 
     @PutMapping("/senha")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    void alterarSenha(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody AlterarSenhaRequest req) {
-        usuarios.alterarSenha(jwt, req);
+    ResponseEntity<PerfilResponse> alterarSenha(@AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody AlterarSenhaRequest req, HttpServletResponse response) {
+        var token = usuarios.alterarSenha(jwt, req);
+        cookies.set(response, token.usuario().id(), token.token(), token.expiraEm());
+        return ResponseEntity.ok(token.usuario());
     }
 
     @PostMapping("/codigo-recuperacao")
@@ -69,7 +77,8 @@ public class MeController {
 
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    void excluir(@AuthenticationPrincipal Jwt jwt) {
+    void excluir(@AuthenticationPrincipal Jwt jwt, HttpServletResponse response) {
+        cookies.clear(response, Integer.valueOf(jwt.getSubject()));
         usuarios.excluir(jwt);
     }
 
@@ -83,4 +92,5 @@ public class MeController {
     List<MinhaAvaliacao> minhasAvaliacoes(@AuthenticationPrincipal Jwt jwt) {
         return avaliacoes.minhas(usuarios.logado(jwt));
     }
+
 }

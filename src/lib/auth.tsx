@@ -1,29 +1,26 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Account } from "@/lib/mock-data";
-import { api, getToken, saveToken, type ApiUser } from "@/lib/api";
+import { api, ApiError, setActiveSessionId, type ApiUser } from "@/lib/api";
 import { AuthContext, type AuthContextValue, type AuthResult } from "@/lib/auth-context";
 
 type SessionState = {
   accounts: Account[];
   signedInIds: string[];
   activeId: string | null;
-  tokens: Record<string, string>;
 };
 
 const SESSION_KEY = "cookie:sessions";
-const initialState: SessionState = { accounts: [], signedInIds: [], activeId: null, tokens: {} };
+const initialState: SessionState = { accounts: [], signedInIds: [], activeId: null };
 
 function readStoredState(): SessionState | null {
   if (typeof window === "undefined") return null;
   try {
     const value = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null") as Partial<SessionState>;
     if (!value || !Array.isArray(value.accounts) || !Array.isArray(value.signedInIds)) return null;
-    if (!value.tokens || typeof value.tokens !== "object") return null;
     return {
       accounts: value.accounts,
       signedInIds: value.signedInIds,
       activeId: typeof value.activeId === "string" ? value.activeId : null,
-      tokens: value.tokens,
     };
   } catch {
     return null;
@@ -34,6 +31,7 @@ function persistState(state: SessionState) {
   if (typeof window === "undefined") return;
   if (state.signedInIds.length === 0) localStorage.removeItem(SESSION_KEY);
   else localStorage.setItem(SESSION_KEY, JSON.stringify(state));
+  localStorage.removeItem("cookie:token");
 }
 
 function toAccount(u: ApiUser): Account {
@@ -60,52 +58,76 @@ function toAccount(u: ApiUser): Account {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SessionState>(initialState);
+  const stateRef = useRef(state);
+  stateRef.current = state;
   const [ready, setReady] = useState(false);
   const [pendingRecoveryCode, setPendingRecoveryCode] = useState<string | null>(null);
 
   const commit = useCallback((next: SessionState) => {
+    stateRef.current = next;
     persistState(next);
-    saveToken(next.activeId ? (next.tokens[next.activeId] ?? null) : null);
+    setActiveSessionId(next.activeId);
     setState(next);
   }, []);
+
+  const refreshUser = useCallback(async () => {
+    const activeId = stateRef.current.activeId;
+    if (!activeId) return;
+    const profile = await api<ApiUser>("/api/me");
+    if (stateRef.current.activeId !== activeId || String(profile.id) !== activeId) return;
+    const updated = toAccount(profile);
+    const current = stateRef.current;
+    commit({
+      ...current,
+      accounts: current.accounts.map((account) => (account.id === activeId ? updated : account)),
+    });
+  }, [commit]);
 
   useEffect(() => {
     let cancelled = false;
     const restore = async () => {
       const stored = readStoredState();
-      const legacyToken = getToken();
-      const candidates = stored
-        ? stored.signedInIds.flatMap((id) => {
-            const token = stored.tokens[id];
-            return token ? [[id, token] as const] : [];
-          })
-        : legacyToken
-          ? [["legacy", legacyToken] as const]
-          : [];
+      localStorage.removeItem("cookie:token");
+      if (stored) localStorage.setItem(SESSION_KEY, JSON.stringify(stored));
+      const candidates = stored?.signedInIds ?? [];
       const checked = await Promise.all(
-        candidates.map(async ([, token]) => {
+        candidates.map(async (id) => {
           try {
             const user = await api<ApiUser>("/api/me", {
-              headers: { Authorization: `Bearer ${token}` },
+              headers: { "X-Session-Id": id },
             });
-            return { account: toAccount(user), token };
-          } catch {
-            return null;
+            return { account: toAccount(user), id, unavailable: false };
+          } catch (error) {
+            // Só descartamos uma sessão quando a API confirma que o token não é válido.
+            // Falhas de rede/servidor não devem apagar as sessões persistidas no navegador.
+            return {
+              account: null,
+              id,
+              unavailable: !(error instanceof ApiError && error.status === 401),
+            };
           }
         }),
       );
       if (cancelled) return;
+      if (checked.some((item) => item.unavailable)) {
+        if (stored) {
+          setActiveSessionId(stored.activeId);
+          setState(stored);
+        }
+        setReady(true);
+        return;
+      }
       const valid = checked.filter(
-        (item): item is { account: Account; token: string } => item !== null,
+        (item): item is { account: Account; id: string; unavailable: false } =>
+          item.account !== null,
       );
       const accounts = [...new Map(valid.map((item) => [item.account.id, item.account])).values()];
-      const tokens = Object.fromEntries(valid.map((item) => [item.account.id, item.token]));
       const signedInIds = accounts.map((account) => account.id);
       const activeId =
         stored?.activeId && signedInIds.includes(stored.activeId)
           ? stored.activeId
           : (signedInIds[0] ?? null);
-      commit({ accounts, signedInIds, activeId, tokens });
+      commit({ accounts, signedInIds, activeId });
       setReady(true);
     };
     void restore();
@@ -118,17 +140,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string): Promise<AuthResult> => {
       try {
         const data = await api<{
-          token: string;
           usuario: ApiUser;
           codigoRecuperacao?: string | null;
         }>("/api/auth/login", { method: "POST", body: JSON.stringify({ email, senha: password }) });
-        saveToken(data.token);
         const account = toAccount(data.usuario);
         commit({
           accounts: [...state.accounts.filter((item) => item.id !== account.id), account],
           signedInIds: [...state.signedInIds.filter((id) => id !== account.id), account.id],
           activeId: account.id,
-          tokens: { ...state.tokens, [account.id]: data.token },
         });
         if (data.codigoRecuperacao) setPendingRecoveryCode(data.codigoRecuperacao);
         return {
@@ -155,20 +174,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }): Promise<AuthResult> => {
       try {
         const data = await api<{
-          token: string;
           usuario: ApiUser;
           codigoRecuperacao?: string | null;
         }>("/api/auth/cadastro", {
           method: "POST",
           body: JSON.stringify({ nome: name, email, senha: password }),
         });
-        saveToken(data.token);
         const account = toAccount(data.usuario);
         commit({
           accounts: [...state.accounts.filter((item) => item.id !== account.id), account],
           signedInIds: [...state.signedInIds.filter((id) => id !== account.id), account.id],
           activeId: account.id,
-          tokens: { ...state.tokens, [account.id]: data.token },
         });
         if (data.codigoRecuperacao) setPendingRecoveryCode(data.codigoRecuperacao);
         return {
@@ -187,12 +203,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    for (const id of stateRef.current.signedInIds) {
+      void api("/api/auth/logout", {
+        method: "POST",
+        headers: { "X-Session-Id": id },
+      }).catch(() => undefined);
+    }
     commit(initialState);
   }, [commit]);
 
   const switchAccount = useCallback(
     (id: string) => {
-      if (!state.signedInIds.includes(id) || !state.tokens[id] || id === state.activeId) return;
+      if (!state.signedInIds.includes(id) || id === state.activeId) return;
       commit({ ...state, activeId: id });
       window.location.reload();
     },
@@ -228,13 +250,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await api("/api/me", { method: "DELETE" });
     const id = state.activeId;
     const signedInIds = state.signedInIds.filter((x) => x !== id);
-    const tokens = { ...state.tokens };
-    delete tokens[id];
     commit({
       accounts: state.accounts.filter((a) => a.id !== id),
       signedInIds,
       activeId: signedInIds[0] ?? null,
-      tokens,
     });
   }, [state, commit]);
 
@@ -251,6 +270,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       switchAccount,
       updateUser,
+      refreshUser,
       deleteAccount,
       emailInUse: (email) => {
         const normalized = email.trim().toLowerCase();
@@ -268,6 +288,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     switchAccount,
     updateUser,
+    refreshUser,
     deleteAccount,
   ]);
 

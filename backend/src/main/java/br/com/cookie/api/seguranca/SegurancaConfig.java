@@ -15,9 +15,15 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -29,13 +35,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
+import br.com.cookie.api.usuario.UsuarioRepository;
+
 @Configuration
 public class SegurancaConfig {
 
     @Bean
     SecurityFilterChain api(HttpSecurity http) throws Exception {
         http
-                // API sem sessão nem cookies: o token vai no cabeçalho Authorization, então não há CSRF.
+                // A sessão usa cookie HttpOnly; CORS restrito e o cabeçalho customizado exigem preflight.
                 .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -50,7 +58,8 @@ public class SegurancaConfig {
                                 "/uploads/**", "/demo/**").permitAll()
                         .requestMatchers("/api/moderacao/**").hasRole("ADMINISTRADOR")
                         .anyRequest().authenticated())
-                .oauth2ResourceServer(o -> o.jwt(jwt -> jwt.jwtAuthenticationConverter(conversorDePapeis())));
+                .oauth2ResourceServer(o -> o.bearerTokenResolver(new CookieOrHeaderTokenResolver())
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(conversorDePapeis())));
         return http.build();
     }
 
@@ -79,8 +88,26 @@ public class SegurancaConfig {
     }
 
     @Bean
-    JwtDecoder jwtDecoder(SecretKey chave) {
-        return NimbusJwtDecoder.withSecretKey(chave).macAlgorithm(MacAlgorithm.HS256).build();
+    JwtDecoder jwtDecoder(SecretKey chave, UsuarioRepository usuarios) {
+        var decoder = NimbusJwtDecoder.withSecretKey(chave).macAlgorithm(MacAlgorithm.HS256).build();
+        OAuth2TokenValidator<Jwt> contaAtual = token -> {
+            Integer usuarioId;
+            try {
+                usuarioId = Integer.valueOf(token.getSubject());
+            } catch (NumberFormatException e) {
+                return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token"));
+            }
+            var usuario = usuarios.findById(usuarioId).orElse(null);
+            Object versaoClaim = token.getClaims().get("versao_credencial");
+            int versaoToken = versaoClaim instanceof Number numero ? numero.intValue() : 0;
+            if (usuario == null || usuario.getVersaoCredencial() != versaoToken) {
+                return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token"));
+            }
+            return OAuth2TokenValidatorResult.success();
+        };
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                JwtValidators.createDefaultWithIssuer("cookie-api"), contaAtual));
+        return decoder;
     }
 
     @Bean
@@ -93,7 +120,8 @@ public class SegurancaConfig {
         var config = new CorsConfiguration();
         config.setAllowedOrigins(origens);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", SessionCookieService.SESSION_HEADER));
+        config.setAllowCredentials(true);
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

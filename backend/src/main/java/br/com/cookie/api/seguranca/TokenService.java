@@ -37,6 +37,7 @@ public class TokenService {
                 .subject(usuario.getId().toString())
                 .claim("nome_usuario", usuario.getNomeUsuario())
                 .claim(CLAIM_PAPEIS, List.of(usuario.getTipo().name()))
+                .claim("versao_credencial", usuario.getVersaoCredencial())
                 .build();
         var header = JwsHeader.with(MacAlgorithm.HS256).build();
         String token = encoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

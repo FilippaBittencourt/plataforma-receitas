@@ -145,30 +145,32 @@ function EntrarPage() {
             </Button>
           </form>
 
-          <div className="mt-4 rounded-2xl border border-dashed border-border p-3 lg:mt-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Contas de demonstração
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Contas de demonstração da API (senha: demo1234).
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {demoAccounts.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => {
-                    setEmail(a.email);
-                    setSenha("demo1234");
-                    setErrors({});
-                  }}
-                  className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                >
-                  {a.role === "moderador" ? "Moderação" : a.name}
-                </button>
-              ))}
+          {import.meta.env.DEV && (
+            <div className="mt-4 rounded-2xl border border-dashed border-border p-3 lg:mt-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Contas de demonstração
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Contas de demonstração da API (senha: demo1234).
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {demoAccounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => {
+                      setEmail(a.email);
+                      setSenha("demo1234");
+                      setErrors({});
+                    }}
+                    className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
+                  >
+                    {a.role === "moderador" ? "Moderação" : a.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <p className="mt-4 text-sm text-muted-foreground">
             Ainda não tem conta?{" "}

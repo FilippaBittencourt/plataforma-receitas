@@ -1,5 +1,19 @@
 const API_URL = (import.meta.env["VITE_API_URL"] || "http://localhost:8080").replace(/\/$/, "");
-const TOKEN_KEY = "cookie:token";
+let activeSessionId: string | null = null;
+
+export function setActiveSessionId(id: string | null) {
+  activeSessionId = id;
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 export type ApiUser = {
   id: number;
@@ -20,24 +34,14 @@ export type ApiUser = {
   };
 };
 
-export function getToken() {
-  return typeof window === "undefined" ? null : localStorage.getItem(TOKEN_KEY);
-}
-export function saveToken(token: string | null) {
-  if (typeof window === "undefined") return;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
-}
-
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData))
     headers.set("Content-Type", "application/json");
-  const token = getToken();
-  if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
+  if (activeSessionId && !headers.has("X-Session-Id")) headers.set("X-Session-Id", activeSessionId);
   let response: Response;
   try {
-    response = await fetch(`${API_URL}${path}`, { ...options, headers });
+    response = await fetch(`${API_URL}${path}`, { ...options, headers, credentials: "include" });
   } catch {
     throw new Error(
       `Não foi possível conectar à API (${API_URL}). Verifique se o backend está ativo.`,
@@ -49,11 +53,12 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
       message?: string;
       campos?: Record<string, string>;
     } | null;
-    throw new Error(
+    throw new ApiError(
       data?.detail ||
         data?.message ||
         (data?.campos && Object.values(data.campos).join(" ")) ||
         `Falha na API (${response.status}).`,
+      response.status,
     );
   }
   if (response.status === 204 || response.status === 202) return undefined as T;

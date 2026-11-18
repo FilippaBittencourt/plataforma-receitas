@@ -1,0 +1,2 @@
+ALTER TABLE usuario
+    ADD COLUMN versao_credencial INTEGER NOT NULL DEFAULT 0;

@@ -28,10 +28,13 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-cookie}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Configure POSTGRES_PASSWORD no arquivo .env}
       JWT_SECRET: ${JWT_SECRET:?Configure JWT_SECRET no arquivo .env}
+      AUTH_COOKIE_SECURE: "true"
+      AUTH_COOKIE_SAME_SITE: ${AUTH_COOKIE_SAME_SITE:-Lax}
       APP_CORS_ORIGENS: ${APP_CORS_ORIGENS:?Configure a origem do frontend no arquivo .env}
       UPLOADS_DIR: /data/uploads
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-qwen/qwen3.8-27b}
+      APP_DEMO_ATIVO: "false"
     volumes:
       - uploads-dados:/data/uploads
 
