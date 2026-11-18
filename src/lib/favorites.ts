@@ -31,7 +31,9 @@ export function useFavorite(recipeId: string) {
     },
     onError: (error, _favorite, context) => {
       if (context) queryClient.setQueryData(queryKey, context.previous);
-      toast.error(error instanceof Error ? error.message : "Não foi possível atualizar os favoritos.");
+      toast.error(
+        error instanceof Error ? error.message : "Não foi possível atualizar os favoritos.",
+      );
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey });

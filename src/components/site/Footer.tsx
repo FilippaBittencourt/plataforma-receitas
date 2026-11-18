@@ -35,7 +35,10 @@ export function Footer() {
                 <Link to="/publicar" className="block text-muted-foreground hover:text-foreground">
                   Publicar receita
                 </Link>
-                <Link to="/compartilhar" className="block text-muted-foreground hover:text-foreground">
+                <Link
+                  to="/compartilhar"
+                  className="block text-muted-foreground hover:text-foreground"
+                >
                   Indicar link
                 </Link>
               </>

@@ -40,11 +40,11 @@ export function Header() {
 
   const accountLinks = user
     ? [
-      { to: "/perfil", label: "Meu perfil" },
+        { to: "/perfil", label: "Meu perfil" },
         ...(user.role !== "moderador" ? [{ to: "/favoritos", label: "Favoritos" } as const] : []),
-      { to: "/configuracoes", label: "Configurações" },
-      ...(user.role === "moderador" ? [{ to: "/admin", label: "Moderação" } as const] : []),
-    ]
+        { to: "/configuracoes", label: "Configurações" },
+        ...(user.role === "moderador" ? [{ to: "/admin", label: "Moderação" } as const] : []),
+      ]
     : [];
   const visibleNav =
     user?.role === "moderador" ? nav.filter((item) => item.to !== "/compartilhar") : nav;
@@ -81,8 +81,9 @@ export function Header() {
             <Link
               key={`${item.to}-${item.label}`}
               to={item.to}
-              className={`rounded-full px-3.5 py-2 text-sm font-medium transition-colors hover:bg-secondary hover:text-foreground ${isActive(item.to) ? "bg-secondary text-foreground" : "text-muted-foreground"
-                }`}
+              className={`rounded-full px-3.5 py-2 text-sm font-medium transition-colors hover:bg-secondary hover:text-foreground ${
+                isActive(item.to) ? "bg-secondary text-foreground" : "text-muted-foreground"
+              }`}
             >
               {item.label}
             </Link>
@@ -174,8 +175,9 @@ export function Header() {
                   <SheetClose asChild key={`${item.to}-${item.label}`}>
                     <Link
                       to={item.to}
-                      className={`rounded-xl px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary ${isActive(item.to) ? "bg-secondary" : ""
-                        }`}
+                      className={`rounded-xl px-3 py-2.5 text-sm font-medium text-foreground hover:bg-secondary ${
+                        isActive(item.to) ? "bg-secondary" : ""
+                      }`}
                     >
                       {item.label}
                     </Link>

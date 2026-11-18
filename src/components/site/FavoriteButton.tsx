@@ -44,7 +44,12 @@ export function FavoriteButton({
       {saving ? (
         <LoaderCircle width={18} height={18} className="animate-spin" />
       ) : (
-        <Heart width={18} height={18} fill={favorite ? "currentColor" : "none"} aria-hidden="true" />
+        <Heart
+          width={18}
+          height={18}
+          fill={favorite ? "currentColor" : "none"}
+          aria-hidden="true"
+        />
       )}
       {showLabel && <span>{favorite ? "Favoritada" : "Favoritar"}</span>}
     </Button>
