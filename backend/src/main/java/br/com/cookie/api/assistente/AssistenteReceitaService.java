@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -23,19 +23,20 @@ import br.com.cookie.api.comum.ApiException;
 @Service
 public class AssistenteReceitaService {
 
-    private static final long JANELA_LIMITE_MS = 60_000;
-    private static final int MAXIMO_POR_MINUTO = 12;
-
     private final RestClient client;
     private final String apiKey;
     private final String model;
-    private final ConcurrentMap<String, JanelaUso> usoPorUsuario = new ConcurrentHashMap<>();
+    private final AssistenteLimiteService limite;
 
     public AssistenteReceitaService(@Value("${app.groq.api-key:}") String apiKey,
-            @Value("${app.groq.model:qwen/qwen3.8-27b}") String model) {
-        this.client = RestClient.create();
+            @Value("${app.groq.model:qwen/qwen3.8-27b}") String model, AssistenteLimiteService limite) {
+        var httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        var requestFactory = new org.springframework.http.client.JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(30));
+        this.client = RestClient.builder().requestFactory(requestFactory).build();
         this.apiKey = apiKey;
         this.model = model;
+        this.limite = limite;
     }
 
     public Resposta perguntar(Pergunta pergunta, String usuarioId) {
@@ -43,7 +44,7 @@ public class AssistenteReceitaService {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
                     "O assistente ainda não está configurado. Defina GROQ_API_KEY no backend.");
         }
-        verificarLimite(usuarioId);
+        limite.registrarPergunta(usuarioId);
 
         var contents = new ArrayList<Map<String, Object>>();
         contents.add(mensagem("system", instrucoes(pergunta.receita())));
@@ -89,18 +90,6 @@ public class AssistenteReceitaService {
         } catch (RestClientException e) {
             throw new ApiException(HttpStatus.BAD_GATEWAY,
                     "Não foi possível conectar à Groq agora. Tente novamente em instantes.");
-        }
-    }
-
-    private void verificarLimite(String usuarioId) {
-        long agora = System.currentTimeMillis();
-        JanelaUso janela = usoPorUsuario.compute(usuarioId, (id, atual) ->
-                atual == null || agora - atual.inicio() >= JANELA_LIMITE_MS
-                        ? new JanelaUso(agora, 1)
-                        : new JanelaUso(atual.inicio(), atual.quantidade() + 1));
-        if (janela.quantidade() > MAXIMO_POR_MINUTO) {
-            throw new ApiException(HttpStatus.TOO_MANY_REQUESTS,
-                    "Você enviou várias perguntas em pouco tempo. Aguarde um minuto e tente novamente.");
         }
     }
 
@@ -153,6 +142,4 @@ public class AssistenteReceitaService {
         return contentValue instanceof String answer ? answer.trim() : "";
     }
 
-    private record JanelaUso(long inicio, int quantidade) {
-    }
 }

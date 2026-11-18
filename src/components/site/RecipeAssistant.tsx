@@ -153,7 +153,7 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
           pergunta,
           historico: historico.map(({ role, text: messageText }) => ({
             role,
-            texto: messageText.slice(0, 6000),
+            texto: messageText.slice(0, 2000),
           })),
           receita: recipe
             ? {
@@ -286,7 +286,7 @@ export function RecipeAssistant({ recipe }: { recipe?: Recipe }) {
                     recipe ? "Pergunte sobre esta receita…" : "O que você quer cozinhar?"
                   }
                   aria-label="Sua pergunta para o assistente"
-                  maxLength={1000}
+                  maxLength={500}
                   rows={1}
                   disabled={sending}
                   className="max-h-28 min-h-10 resize-none rounded-2xl bg-background py-2.5"

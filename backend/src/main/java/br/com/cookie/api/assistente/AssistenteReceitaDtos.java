@@ -15,8 +15,8 @@ public final class AssistenteReceitaDtos {
     public record ContextoReceita(
             @NotBlank @Size(max = 200) String titulo,
             @Size(max = 2000) String resumo,
-            @Size(max = 100) List<@Size(max = 500) String> ingredientes,
-            @Size(max = 100) List<@Size(max = 2000) String> passos,
+            @Size(max = 30) List<@Size(max = 200) String> ingredientes,
+            @Size(max = 30) List<@Size(max = 500) String> passos,
             Integer tempoPreparo,
             @Size(max = 100) String rendimento,
             @Size(max = 30) String dificuldade,
@@ -25,11 +25,11 @@ public final class AssistenteReceitaDtos {
 
     public record Mensagem(
             @NotBlank @Pattern(regexp = "user|assistant") String role,
-            @NotBlank @Size(max = 6000) String texto) {
+            @NotBlank @Size(max = 2000) String texto) {
     }
 
     public record Pergunta(
-            @NotBlank @Size(max = 1000) String pergunta,
+            @NotBlank @Size(max = 500) String pergunta,
             @Valid ContextoReceita receita,
             @Size(max = 6) List<@Valid Mensagem> historico) {
     }
