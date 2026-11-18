@@ -189,7 +189,7 @@ function Home() {
             <Link
               key={c.id}
               to="/buscar"
-              search={{ q: c.label }}
+              search={{ q: "", categoria: c.id }}
               className="group rounded-2xl border border-border bg-card p-4 text-center shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lifted"
             >
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-cream text-primary transition-colors group-hover:bg-sand/60">

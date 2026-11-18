@@ -38,16 +38,32 @@ function RankingPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]["id"]>("nota");
   const [items, setItems] = useState<Recipe[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    api<RecipeDto[]>("/api/receitas/ranking?limite=50")
-      .then((data) => setItems(data.map(toRecipe)))
-      .catch((e) => setError(e instanceof Error ? e.message : "Falha ao carregar ranking."));
-  }, []);
-  const list = [...items].sort((a, b) => {
-    if (tab === "sucesso") return b.successRate - a.successRate;
-    if (tab === "testadas") return b.testedCount - a.testedCount;
-    return b.rating - a.rating;
-  });
+    let active = true;
+    const ordem =
+      tab === "sucesso" ? "taxa-sucesso" : tab === "testadas" ? "mais-testadas" : "melhores";
+    setLoading(true);
+    api<RecipeDto[]>(`/api/receitas/ranking?ordem=${ordem}&limite=50`)
+      .then((data) => {
+        if (active) {
+          setItems(data.map(toRecipe));
+          setError("");
+        }
+      })
+      .catch((e) => {
+        if (active) {
+          setItems([]);
+          setError(e instanceof Error ? e.message : "Falha ao carregar ranking.");
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tab]);
 
   return (
     <Shell>
@@ -83,55 +99,61 @@ function RankingPage() {
           ))}
         </div>
 
-        <ol className="mt-8 space-y-3">
-          {list.map((r, i) => (
-            <li key={r.id}>
-              <Link
-                to="/receita/$recipeId"
-                params={{ recipeId: r.id }}
-                className="flex items-center gap-4 rounded-3xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lifted"
-              >
-                <span
-                  className={cn(
-                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-lg font-semibold",
-                    i === 0 ? "bg-caramel text-primary-foreground" : "bg-secondary text-foreground",
-                  )}
+        {loading ? (
+          <p className="mt-8 text-sm text-muted-foreground">Carregando ranking…</p>
+        ) : error ? null : (
+          <ol className="mt-8 space-y-3">
+            {items.map((r, i) => (
+              <li key={r.id}>
+                <Link
+                  to="/receita/$recipeId"
+                  params={{ recipeId: r.id }}
+                  className="flex items-center gap-4 rounded-3xl border border-border bg-card p-4 shadow-soft transition-all hover:-translate-y-0.5 hover:shadow-lifted"
                 >
-                  {i + 1}
-                </span>
-                <img
-                  src={r.image}
-                  alt={r.title}
-                  loading="lazy"
-                  width={1024}
-                  height={768}
-                  className="h-16 w-16 rounded-2xl object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-foreground">{r.title}</p>
-                    {r.verified && <VerifiedBadge label="Verificada" />}
+                  <span
+                    className={cn(
+                      "flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-lg font-semibold",
+                      i === 0
+                        ? "bg-caramel text-primary-foreground"
+                        : "bg-secondary text-foreground",
+                    )}
+                  >
+                    {i + 1}
+                  </span>
+                  <img
+                    src={r.image}
+                    alt={r.title}
+                    loading="lazy"
+                    width={1024}
+                    height={768}
+                    className="h-16 w-16 rounded-2xl object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-foreground">{r.title}</p>
+                      {r.verified && <VerifiedBadge label="Verificada" />}
+                    </div>
+                    <p className="text-sm text-muted-foreground">por {r.author}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Stars value={r.rating} size={12} />
+                      <span className="text-xs text-muted-foreground">
+                        {r.reviewsCount.toLocaleString("pt-BR")} avaliações
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">por {r.author}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <Stars value={r.rating} size={12} />
-                    <span className="text-xs text-muted-foreground">
-                      {r.reviewsCount.toLocaleString("pt-BR")} avaliações
-                    </span>
+                  <div className="hidden text-right sm:block">
+                    <p className="font-display text-2xl font-semibold text-verified">
+                      {r.successRate}%
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {r.testedCount.toLocaleString("pt-BR")} pessoas
+                    </p>
                   </div>
-                </div>
-                <div className="hidden text-right sm:block">
-                  <p className="font-display text-2xl font-semibold text-verified">
-                    {r.successRate}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.testedCount.toLocaleString("pt-BR")} pessoas
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ol>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     </Shell>
   );

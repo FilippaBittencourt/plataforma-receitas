@@ -17,13 +17,15 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 
 /** Filtros e ordenação da busca pública de receitas (só receitas aprovadas). */
-public record BuscaReceitas(String texto, String categoria, String ingrediente, Origem origem, boolean verificadas,
-        int taxaSucessoMinima, int minimoAvaliacoes, Ordem ordem) {
+public record BuscaReceitas(String texto, String categoria, String ingrediente, Origem origem,
+        Dificuldade dificuldade, int tempoMaximo, boolean verificadas, int taxaSucessoMinima,
+        int minimoAvaliacoes, Ordem ordem) {
 
     public enum Ordem {
         RECENTES,
         MELHORES,
         MAIS_TESTADAS,
+        MAIS_AVALIADAS,
         TAXA_SUCESSO,
         MENOR_TEMPO,
         /** Usada no ranking: verificadas primeiro, depois a média e o volume de avaliações. */
@@ -48,7 +50,23 @@ public record BuscaReceitas(String texto, String categoria, String ingrediente, 
             filtros.add(cb.equal(root.get("status"), StatusReceita.APROVADA));
 
             if (temValor(texto)) {
-                filtros.add(hcb.ilike(root.get("titulo"), contem(texto), '\\'));
+                List<Predicate> correspondencias = new ArrayList<>();
+                correspondencias.add(hcb.ilike(root.get("titulo"), contem(texto), '\\'));
+                var autor = root.join("autor", JoinType.LEFT);
+                correspondencias.add(hcb.ilike(autor.get("nome"), contem(texto), '\\'));
+                String handle = texto.trim().replaceFirst("^@+", "");
+                if (!handle.isBlank()) {
+                    correspondencias.add(hcb.ilike(autor.get("nomeUsuario"), contem(handle), '\\'));
+                }
+                if (query != null) {
+                    var sub = query.subquery(Integer.class);
+                    Root<Receita> r2 = sub.from(Receita.class);
+                    Join<Receita, ItemIngrediente> item = r2.join("ingredientes");
+                    sub.select(r2.get("id")).where(cb.equal(r2, root),
+                            hcb.ilike(item.get("ingrediente").get("nome"), contem(texto), '\\'));
+                    correspondencias.add(cb.exists(sub));
+                }
+                filtros.add(cb.or(correspondencias.toArray(Predicate[]::new)));
             }
             if (temValor(categoria)) {
                 List<String> categorias = Arrays.stream(categoria.split(","))
@@ -63,6 +81,16 @@ public record BuscaReceitas(String texto, String categoria, String ingrediente, 
             }
             if (origem != null) {
                 filtros.add(cb.equal(root.get("origem"), origem));
+            }
+            if (dificuldade != null) {
+                if (dificuldade == Dificuldade.DIFICIL) {
+                    filtros.add(root.get("dificuldade").in(Dificuldade.DIFICIL, Dificuldade.AVANCADO));
+                } else {
+                    filtros.add(cb.equal(root.get("dificuldade"), dificuldade));
+                }
+            }
+            if (tempoMaximo > 0) {
+                filtros.add(cb.le(root.get("tempoPreparo"), tempoMaximo));
             }
             if (temValor(ingrediente) && query != null) {
                 // EXISTS em vez de JOIN, para não repetir a receita quando o ingrediente aparece duas vezes.
@@ -83,7 +111,7 @@ public record BuscaReceitas(String texto, String categoria, String ingrediente, 
             }
             if (taxaSucessoMinima > 0) {
                 filtros.add(cb.ge(cb.coalesce(est.get("taxaSucesso"), BigDecimal.ZERO),
-                        BigDecimal.valueOf(taxaSucessoMinima, 2)));
+                        BigDecimal.valueOf(taxaSucessoMinima)));
             }
 
             // A consulta de contagem da paginação não precisa (nem aceita bem) ORDER BY.
@@ -102,7 +130,8 @@ public record BuscaReceitas(String texto, String categoria, String ingrediente, 
         return switch (ordem) {
             case RECENTES -> List.of(maisNovas, cb.desc(root.get("id")));
             case MELHORES -> List.of(cb.desc(media), cb.desc(total), maisNovas);
-            case MAIS_TESTADAS -> List.of(cb.desc(total), cb.desc(media), maisNovas);
+            case MAIS_TESTADAS -> List.of(cb.desc(est.get("totalTestadores")), cb.desc(media), maisNovas);
+            case MAIS_AVALIADAS -> List.of(cb.desc(total), cb.desc(media), maisNovas);
             case TAXA_SUCESSO -> List.of(cb.desc(cb.coalesce(est.get("taxaSucesso"), BigDecimal.ZERO)),
                     cb.desc(media), cb.desc(total), maisNovas);
             case MENOR_TEMPO -> List.of(

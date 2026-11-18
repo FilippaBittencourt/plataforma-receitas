@@ -39,28 +39,32 @@ public class ReceitaController {
 
     /**
      * Busca pública. Ex.: /api/receitas?q=bolo&categoria=doces&ingrediente=cenoura&verificadas=true&ordem=melhores
-     * Ordens: recentes (padrão), melhores, mais-testadas.
+     * Ordens: recentes (padrão), melhores, mais-avaliadas, mais-testadas, taxa-sucesso e menor-tempo.
      */
     @GetMapping
     Pagina<ReceitaResumo> buscar(@RequestParam(required = false) String q,
             @RequestParam(required = false) String categoria,
             @RequestParam(required = false) String ingrediente,
             @RequestParam(required = false) Origem origem,
+            @RequestParam(required = false) Dificuldade dificuldade,
+            @RequestParam(required = false) Integer tempoMaximo,
             @RequestParam(defaultValue = "false") boolean verificadas,
             @RequestParam(defaultValue = "0") int taxaSucessoMinima,
             @RequestParam(required = false) String ordem,
             @RequestParam(defaultValue = "0") int pagina,
             @RequestParam(defaultValue = "12") int tamanho) {
-        var busca = new BuscaReceitas(q, categoria, ingrediente, origem, verificadas,
+        var busca = new BuscaReceitas(q, categoria, ingrediente, origem, dificuldade,
+                tempoMaximo == null ? 0 : Math.clamp(tempoMaximo, 0, 10080), verificadas,
                 Math.clamp(taxaSucessoMinima, 0, 100), 0, Ordem.de(ordem));
         return receitas.buscar(busca, paginacao(pagina, tamanho));
     }
 
-    /** Ranking: só receitas com pelo menos uma avaliação; verificadas primeiro. */
+    /** Ranking: só receitas com pelo menos uma avaliação; a ordem padrão prioriza as verificadas. */
     @GetMapping("/ranking")
     List<ReceitaResumo> ranking(@RequestParam(required = false) String categoria,
+            @RequestParam(defaultValue = "ranking") String ordem,
             @RequestParam(defaultValue = "20") int limite) {
-        var busca = new BuscaReceitas(null, categoria, null, null, false, 0, 1, Ordem.RANKING);
+        var busca = new BuscaReceitas(null, categoria, null, null, null, 0, false, 0, 1, Ordem.de(ordem));
         return receitas.buscar(busca, paginacao(0, limite)).itens();
     }
 

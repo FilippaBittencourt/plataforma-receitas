@@ -19,11 +19,12 @@ import { getRecipeCategories, type RecipeCategory } from "@/lib/categories-api";
 import { searchRecipesPage, toRecipe } from "@/lib/recipes-api";
 import type { Recipe } from "@/lib/mock-data";
 
-type SearchParams = { q: string };
+type SearchParams = { q: string; categoria?: string };
 
 export const Route = createFileRoute("/buscar")({
   validateSearch: (search: Record<string, unknown>): SearchParams => ({
     q: typeof search["q"] === "string" ? (search["q"] as string) : "",
+    ...(typeof search["categoria"] === "string" ? { categoria: search["categoria"] } : {}),
   }),
   head: () => ({
     meta: [
@@ -41,14 +42,16 @@ export const Route = createFileRoute("/buscar")({
 });
 
 function BuscarPage() {
-  const { q } = Route.useSearch();
+  const { q, categoria } = Route.useSearch();
   const navigate = useNavigate();
   const [term, setTerm] = useState(q);
-  const [cats, setCats] = useState<string[]>([]);
+  const [cats, setCats] = useState<string[]>(() => (categoria ? [categoria] : []));
   const [onlyVerified, setOnlyVerified] = useState(false);
   const [minSuccess, setMinSuccess] = useState(0);
   const [ingredient, setIngredient] = useState("");
-  const [sort, setSort] = useState("relevancia");
+  const [difficulty, setDifficulty] = useState("");
+  const [maxTime, setMaxTime] = useState("");
+  const [sort, setSort] = useState("avaliadas");
   const [results, setResults] = useState<Recipe[]>([]);
   const [categories, setCategories] = useState<RecipeCategory[]>([]);
   const [categoryError, setCategoryError] = useState("");
@@ -57,6 +60,12 @@ function BuscarPage() {
   const [totalPaginas, setTotalPaginas] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => setTerm(q), [q]);
+  useEffect(() => {
+    setCats(categoria ? [categoria] : []);
+    setPagina(0);
+  }, [categoria]);
 
   useEffect(() => {
     let active = true;
@@ -78,20 +87,24 @@ function BuscarPage() {
   useEffect(() => {
     let active = true;
     const order =
-      sort === "nota" || sort === "relevancia"
+      sort === "nota"
         ? "melhores"
-        : sort === "testadas"
-          ? "mais-testadas"
-          : sort === "sucesso"
-            ? "taxa-sucesso"
-            : sort === "tempo"
-              ? "menor-tempo"
-              : "recentes";
+        : sort === "avaliadas"
+          ? "mais-avaliadas"
+          : sort === "testadas"
+            ? "mais-testadas"
+            : sort === "sucesso"
+              ? "taxa-sucesso"
+              : sort === "tempo"
+                ? "menor-tempo"
+                : "recentes";
     setLoading(true);
     searchRecipesPage({
       q,
       categoria: cats.length ? cats.join(",") : undefined,
       ingrediente: ingredient.trim() || undefined,
+      dificuldade: difficulty || undefined,
+      tempoMaximo: maxTime || undefined,
       verificadas: onlyVerified,
       taxaSucessoMinima: minSuccess,
       ordem: order,
@@ -107,7 +120,12 @@ function BuscarPage() {
         }
       })
       .catch((e) => {
-        if (active) setError(e instanceof Error ? e.message : "Erro ao buscar receitas.");
+        if (active) {
+          setResults([]);
+          setTotal(0);
+          setTotalPaginas(0);
+          setError(e instanceof Error ? e.message : "Erro ao buscar receitas.");
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -115,7 +133,7 @@ function BuscarPage() {
     return () => {
       active = false;
     };
-  }, [q, cats, onlyVerified, minSuccess, sort, ingredient, pagina]);
+  }, [q, cats, onlyVerified, minSuccess, sort, ingredient, difficulty, maxTime, pagina]);
 
   const changeFilters = (update: () => void) => {
     setPagina(0);
@@ -199,6 +217,50 @@ function BuscarPage() {
             </div>
 
             <div className="mt-6">
+              <Label htmlFor="dificuldade-busca">Dificuldade</Label>
+              <Select
+                value={difficulty || "todas"}
+                onValueChange={(value) =>
+                  changeFilters(() => setDifficulty(value === "todas" ? "" : value))
+                }
+              >
+                <SelectTrigger id="dificuldade-busca" className="mt-2 rounded-xl bg-background">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas</SelectItem>
+                  <SelectItem value="FACIL">Fácil</SelectItem>
+                  <SelectItem value="MEDIO">Médio</SelectItem>
+                  <SelectItem value="DIFICIL">Difícil</SelectItem>
+                  <SelectItem value="CHEF">Chef</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="mt-6">
+              <Label htmlFor="tempo-maximo">Tempo máximo</Label>
+              <Select
+                value={maxTime || "qualquer"}
+                onValueChange={(value) =>
+                  changeFilters(() => setMaxTime(value === "qualquer" ? "" : value))
+                }
+              >
+                <SelectTrigger id="tempo-maximo" className="mt-2 rounded-xl bg-background">
+                  <SelectValue placeholder="Qualquer duração" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="qualquer">Qualquer duração</SelectItem>
+                  <SelectItem value="30">Até 30 minutos</SelectItem>
+                  <SelectItem value="60">Até 1 hora</SelectItem>
+                  <SelectItem value="120">Até 2 horas</SelectItem>
+                  <SelectItem value="240">Até 4 horas</SelectItem>
+                  <SelectItem value="480">Até 8 horas</SelectItem>
+                  <SelectItem value="1440">Até 24 horas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="mt-6">
               <Label htmlFor="ingrediente-busca">Ingrediente</Label>
               <Input
                 id="ingrediente-busca"
@@ -247,7 +309,10 @@ function BuscarPage() {
                   setIngredient("");
                   setOnlyVerified(false);
                   setMinSuccess(0);
+                  setDifficulty("");
+                  setMaxTime("");
                 });
+                void navigate({ to: "/buscar", search: { q } });
               }}
             >
               Limpar filtros
@@ -264,7 +329,7 @@ function BuscarPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="relevancia">Mais avaliadas</SelectItem>
+                  <SelectItem value="avaliadas">Mais avaliadas</SelectItem>
                   <SelectItem value="nota">Maior nota média</SelectItem>
                   <SelectItem value="sucesso">Maior taxa de sucesso</SelectItem>
                   <SelectItem value="testadas">Mais testadas</SelectItem>
@@ -278,7 +343,7 @@ function BuscarPage() {
               <div className="mt-12 flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <LoaderCircle className="h-4 w-4 animate-spin" /> Carregando receitas…
               </div>
-            ) : results.length === 0 ? (
+            ) : error ? null : results.length === 0 ? (
               <div className="mt-10 rounded-3xl border border-dashed border-border p-12 text-center">
                 <p className="font-semibold text-foreground">Nenhuma receita com esses filtros</p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -292,7 +357,7 @@ function BuscarPage() {
                 ))}
               </div>
             )}
-            {!loading && totalPaginas > 1 && (
+            {!loading && !error && totalPaginas > 1 && (
               <nav className="mt-8 flex items-center justify-center gap-4" aria-label="Paginação">
                 <Button
                   type="button"

@@ -2,6 +2,8 @@ package br.com.cookie.api.receita;
 
 import java.time.Instant;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -14,9 +16,11 @@ public interface ReceitaRepository extends JpaRepository<Receita, Integer>, JpaS
 
     long countByAutorIdAndStatus(Integer idAutor, StatusReceita status);
 
-    List<Receita> findByStatusOrderByDataPublicacaoAsc(StatusReceita status);
+    Page<Receita> findByStatusOrderByDataPublicacaoAsc(StatusReceita status, Pageable pageable);
 
     long countByStatus(StatusReceita status);
 
     long countByStatusAndDataModeracaoGreaterThanEqual(StatusReceita status, Instant desde);
+
+    boolean existsByFotoPrincipal(String fotoPrincipal);
 }

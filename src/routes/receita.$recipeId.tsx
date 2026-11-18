@@ -27,7 +27,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/use-auth";
-import { api, apiUrl } from "@/lib/api";
+import { api, ApiError, apiUrl } from "@/lib/api";
 import { requestText, toast } from "@/lib/feedback";
 import { getRecipe, searchRecipes } from "@/lib/recipes-api";
 import type { Recipe } from "@/lib/mock-data";
@@ -56,8 +56,9 @@ export const Route = createFileRoute("/receita/$recipeId")({
   loader: async ({ params }) => {
     try {
       return { recipe: await getRecipe(params.recipeId) };
-    } catch {
-      throw notFound();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) throw notFound();
+      throw error;
     }
   },
   head: ({ loaderData }) => {
@@ -100,7 +101,10 @@ function RecipePage() {
   const navigate = useNavigate();
   const { user, ready } = useAuth();
   const podeAvaliar =
-    ready && user?.role !== "moderador" && recipe.status === "APROVADA" && user?.id !== recipe.authorId;
+    ready &&
+    user?.role !== "moderador" &&
+    recipe.status === "APROVADA" &&
+    user?.id !== recipe.authorId;
   const podeExcluir = user?.role === "moderador" || user?.id === recipe.authorId;
   const excluirReceita = async () => {
     await api(`/api/receitas/${recipe.id}`, { method: "DELETE" });
@@ -122,6 +126,9 @@ function RecipePage() {
   const [commentPhotoUploading, setCommentPhotoUploading] = useState(false);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [commentError, setCommentError] = useState("");
+  const [commentPage, setCommentPage] = useState(0);
+  const [commentsHasMore, setCommentsHasMore] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<number | null>(null);
   const [deletingComment, setDeletingComment] = useState(false);
   const [communityPhotos, setCommunityPhotos] = useState<
@@ -137,15 +144,24 @@ function RecipePage() {
   const [communityPhotosError, setCommunityPhotosError] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<{ src: string; label: string } | null>(null);
   const loadComments = useCallback(
-    () =>
-      api<{ itens: typeof comments }>(`/api/receitas/${recipe.id}/comentarios?tamanho=50`)
-        .then((r) => {
-          setComments(r.itens);
-          setCommentError("");
-        })
-        .catch((e) =>
-          setCommentError(e instanceof Error ? e.message : "Erro ao carregar comentários."),
-        ),
+    async (page = 0, append = false) => {
+      setCommentsLoading(true);
+      try {
+        const result = await api<{
+          itens: typeof comments;
+          pagina: number;
+          totalPaginas: number;
+        }>(`/api/receitas/${recipe.id}/comentarios?pagina=${page}&tamanho=50`);
+        setComments((current) => (append ? [...current, ...result.itens] : result.itens));
+        setCommentPage(result.pagina);
+        setCommentsHasMore(result.pagina + 1 < result.totalPaginas);
+        setCommentError("");
+      } catch (error) {
+        setCommentError(error instanceof Error ? error.message : "Erro ao carregar comentários.");
+      } finally {
+        setCommentsLoading(false);
+      }
+    },
     [recipe.id],
   );
   useEffect(() => {
@@ -351,9 +367,8 @@ function RecipePage() {
                   </Link>
                 ) : (
                   <span className="font-medium text-foreground">{recipe.author}</span>
-                )}{recipe.authorHandle && (
-                  <> @{recipe.authorHandle.replace(/^@/, "")}</>
                 )}
+                {recipe.authorHandle && <> @{recipe.authorHandle.replace(/^@/, "")}</>}
               </p>
             </div>
 
@@ -680,6 +695,17 @@ function RecipePage() {
                     </div>
                   );
                 })}
+                {commentsHasMore && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    disabled={commentsLoading}
+                    onClick={() => void loadComments(commentPage + 1, true)}
+                  >
+                    {commentsLoading ? "Carregando…" : "Ver mais comentários"}
+                  </Button>
+                )}
                 {user && user.role !== "moderador" && (
                   <form
                     onSubmit={submitComment}

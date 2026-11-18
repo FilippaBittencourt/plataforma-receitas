@@ -399,7 +399,7 @@ function PublicarForm() {
           setTitulo(r.titulo);
           setCategoria(r.categoria.slug);
           setTempo(String(r.tempoPreparo));
-          setDificuldade(r.dificuldade === "AVANCADO" ? "DIFICIL" : (r.dificuldade ?? ""));
+          setDificuldade(r.dificuldade ?? "");
           setFaixaCusto(r.faixaCusto ?? "");
           setResumo(r.resumo ?? "");
           setRendimento(r.rendimento ?? "");
@@ -427,7 +427,7 @@ function PublicarForm() {
     setTitulo(c["titulo"] ?? "");
     setCategoria(c["categoria"] ?? "");
     setTempo(c["tempo"] ?? "");
-    setDificuldade(c["dificuldade"] === "AVANCADO" ? "DIFICIL" : (c["dificuldade"] ?? ""));
+    setDificuldade(c["dificuldade"] ?? "");
     setFaixaCusto(c["faixaCusto"] ?? "");
     setResumo(c["resumo"] ?? "");
     setRendimento(c["rendimento"] ?? "");
@@ -530,7 +530,8 @@ function PublicarForm() {
     if (titulo.trim().length < 3) next.titulo = "Dê um nome para a receita.";
     if (!resumo.trim()) next.resumo = "Informe a descrição da receita.";
     if (!categoria) next.categoria = "Escolha uma categoria.";
-    if (!(Number(tempo) > 0)) next.tempo = "Informe o tempo em minutos.";
+    if (!Number.isInteger(Number(tempo)) || !(Number(tempo) > 0) || Number(tempo) > 10080)
+      next.tempo = "Informe um número inteiro entre 1 e 10.080 minutos.";
     if (ingredients.filter((block) => block.type === "ingredient" && block.nome.trim()).length < 2)
       next.ingredientes = "Liste pelo menos 2 ingredientes.";
     if (
