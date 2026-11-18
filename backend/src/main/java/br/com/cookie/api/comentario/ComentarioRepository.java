@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ComentarioRepository extends JpaRepository<Comentario, Integer> {
+    boolean existsByFotoResultado(String fotoResultado);
 
     @EntityGraph(attributePaths = "autor")
     Page<Comentario> findByReceitaIdAndStatusOrderByDataComentarioDesc(Integer idReceita, StatusComentario status,

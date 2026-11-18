@@ -35,16 +35,23 @@ export function PhotoPicker({
   const [uploading, setUploading] = useState(false);
   const image = preview ?? currentImage ?? undefined;
 
+  const requestCleanup = (url: string | null | undefined) => {
+    const filename = url?.match(/^\/uploads\/([0-9a-f-]{36}\.(?:jpg|png|webp))$/)?.[1];
+    if (filename) void api(`/api/uploads/${filename}`, { method: "DELETE" }).catch(() => undefined);
+  };
+
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
 
   const pick = async (file: File | undefined) => {
     if (!file || uploadingRef.current) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Escolha um arquivo de imagem (PNG ou JPG).");
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      toast.error("Escolha uma imagem PNG, JPG ou WEBP.");
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
     if (file.size > MAX_BYTES) {
       toast.error("A foto precisa ter até 5 MB.");
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
     setPreview(URL.createObjectURL(file));
@@ -57,9 +64,11 @@ export function PhotoPicker({
         form.append("arquivo", file);
         const uploaded = await api<{ url: string }>("/api/uploads", { method: "POST", body: form });
         onUploaded(uploaded.url);
+        if (currentImage !== uploaded.url) requestCleanup(currentImage);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Falha ao enviar a foto.");
-        clear();
+        setPreview(undefined);
+        if (inputRef.current) inputRef.current.value = "";
       } finally {
         uploadingRef.current = false;
         setUploading(false);
@@ -70,6 +79,7 @@ export function PhotoPicker({
 
   const clear = () => {
     setPreview(undefined);
+    requestCleanup(currentImage);
     onUploaded?.(null);
     if (inputRef.current) inputRef.current.value = "";
   };

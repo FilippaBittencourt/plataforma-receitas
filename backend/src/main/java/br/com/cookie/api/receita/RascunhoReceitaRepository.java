@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RascunhoReceitaRepository extends JpaRepository<RascunhoReceita, Integer> {
+    boolean existsByConteudoContaining(String conteudo);
     List<RascunhoReceita> findByAutorIdOrderByAtualizadoEmDesc(Integer idAutor);
     Optional<RascunhoReceita> findByIdAndAutorId(Integer id, Integer idAutor);
 }
