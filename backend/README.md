@@ -8,10 +8,10 @@ Pré-requisitos: Java 21 e Docker Desktop aberto. Não precisa instalar Maven ne
 
 ```bash
 cd backend
-./mvnw spring-boot:run
+JWT_SECRET=segredo-local-com-mais-de-32-caracteres APP_DEMO_ATIVO=true ./mvnw spring-boot:run
 ```
 
-Na primeira execução, o Spring Boot:
+Com `APP_DEMO_ATIVO=true`, na primeira execução o Spring Boot:
 
 1. sobe o PostgreSQL pelo `compose.yaml` (porta **5433** no seu computador);
 2. cria as tabelas com as migrations do Flyway (`src/main/resources/db/migration`);
@@ -21,9 +21,9 @@ A API fica em `http://localhost:8080`.
 
 ### Assistente de receitas
 
-O botão flutuante de assistência usa a API da Groq com o modelo `qwen/qwen3.8-27b`. Para ativá-lo localmente, obtenha uma chave na Groq e inicie o backend com `GROQ_API_KEY=sua-chave ./mvnw spring-boot:run`. Em implantação Docker, coloque `GROQ_API_KEY` no `.env` antes de subir o Compose. A chave fica somente no backend; nunca a coloque em uma variável `VITE_*`.
+O botão flutuante de assistência usa a API da Groq com o modelo `qwen/qwen3.8-27b`. Para ativá-lo localmente, obtenha uma chave na Groq e inicie o backend com `APP_DEMO_ATIVO=true GROQ_API_KEY=sua-chave ./mvnw spring-boot:run`. Em implantação Docker, coloque `GROQ_API_KEY` no `.env` antes de subir o Compose. A chave fica somente no backend; nunca a coloque em uma variável `VITE_*`.
 
-O assistente exige login e limita cada conta a 12 perguntas por minuto. Sem chave, o restante da plataforma continua funcionando e o assistente informa que não está configurado.
+O assistente exige login e limita cada conta a 12 perguntas por minuto, com limite compartilhado no PostgreSQL entre instâncias. O contexto e o tempo de espera do provedor também são limitados. Sem chave, o restante da plataforma continua funcionando e o assistente informa que não está configurado.
 
 **Contas de demonstração** (senha `demo1234`):
 
@@ -55,13 +55,9 @@ Nunca edite uma migration que já rodou. Para mudar o banco, crie um arquivo nov
 
 ## Autenticação
 
-`POST /api/auth/login` devolve um `token` (JWT, válido por 7 dias). Nas rotas protegidas, envie o cabeçalho:
+Cadastro e login definem um cookie JWT `HttpOnly`, válido por 7 dias; o token não é enviado no corpo nem armazenado pelo JavaScript. O navegador envia o cookie automaticamente. O front-end usa `credentials: include` e `X-Session-Id` para selecionar a sessão da conta. Integrações externas devem manter autenticação baseada em cookie ou ser configuradas com um mecanismo próprio de emissão de bearer token.
 
-```
-Authorization: Bearer <token>
-```
-
-Senhas são guardadas com BCrypt. Em produção, defina a variável `JWT_SECRET` (mínimo de 32 caracteres) e os dados do banco (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`).
+Senhas são guardadas com BCrypt. Defina `JWT_SECRET` (mínimo de 32 caracteres) e os dados do banco (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`). Em produção, o Compose exige `JWT_SECRET` e configura cookies seguros; se front-end e API estiverem em sites diferentes, configure `AUTH_COOKIE_SAME_SITE=None` junto de HTTPS.
 
 ### Recuperação de senha
 
@@ -91,15 +87,16 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 
 | | Método e rota | O que faz |
 |---|---|---|
-| 🔓 | `POST /api/auth/cadastro` | Cria a conta e já devolve o token. `nomeUsuario` é opcional (gerado a partir do nome). |
-| 🔓 | `POST /api/auth/login` | Entra com e-mail e senha. |
+| 🔓 | `POST /api/auth/cadastro` | Cria a conta, define cookie HttpOnly e devolve os dados do perfil e o código de recuperação. `nomeUsuario` é opcional (gerado a partir do nome). |
+| 🔓 | `POST /api/auth/login` | Entra com e-mail e senha e define cookie HttpOnly. |
+| 🔑 | `POST /api/auth/logout` | Encerra a sessão selecionada pelo cabeçalho `X-Session-Id`. |
 | 🔓 | `POST /api/auth/redefinir-senha` | Troca a senha com e-mail e código de recuperação de uso único; retorna um novo código. |
 | 🔑 | `GET /api/me` | Perfil completo da pessoa logada. |
 | 🔑 | `PATCH /api/me` | Atualiza nome, nome de usuário, bio e foto. |
 | 🔑 | `PUT /api/me/email` | Troca o e-mail. |
 | 🔑 | `PUT /api/me/senha` | Troca a senha (pede a atual). |
 | 🔑 | `POST /api/me/codigo-recuperacao` | Gera um código novo e invalida o anterior. |
-| 🔑 | `DELETE /api/me` | Exclui a conta. As receitas continuam no site, sem autor. |
+| 🔑 | `DELETE /api/me` | Exclui a conta. As receitas continuam no site sem autor; denúncias são mantidas com nomes anonimizados. |
 | 🔑 | `GET /api/me/receitas` | Minhas receitas, inclusive pendentes e recusadas. |
 | 🔑 | `GET /api/me/avaliacoes` | Minhas avaliações. |
 | 🔑 | `GET /api/me/favoritos` | Receitas salvas nos favoritos, da mais recente para a mais antiga. |
@@ -112,8 +109,8 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 | | Método e rota | O que faz |
 |---|---|---|
 | 🔓 | `GET /api/categorias` | Categorias com o total de receitas aprovadas. |
-| 🔓 | `GET /api/receitas` | Busca. Parâmetros: `q`, `categoria`, `ingrediente`, `origem`, `verificadas`, `ordem` (`recentes`, `melhores`, `mais-testadas`), `pagina`, `tamanho`. |
-| 🔓 | `GET /api/receitas/ranking` | Ranking (`categoria`, `limite`). |
+| 🔓 | `GET /api/receitas` | Busca. Parâmetros: `q` (título, ingrediente ou autor), `categoria`, `ingrediente`, `origem`, `dificuldade`, `tempoMaximo` (minutos), `verificadas`, `taxaSucessoMinima`, `ordem` (`recentes`, `melhores`, `mais-avaliadas`, `mais-testadas`, `taxa-sucesso`, `menor-tempo`), `pagina`, `tamanho`. |
+| 🔓 | `GET /api/receitas/ranking` | Ranking (`categoria`, `ordem`, `limite`). A ordem pode ser `ranking`, `melhores`, `mais-avaliadas`, `mais-testadas` ou `taxa-sucesso`. |
 | 🔓 | `GET /api/receitas/{id}` | Detalhe com ingredientes, passos e médias por critério. |
 | 🔑 | `POST /api/receitas` | Publica uma receita própria imediatamente. |
 | 🔑 | `POST /api/receitas/indicacoes` | Envia uma receita externa com link para a curadoria. |
@@ -130,7 +127,8 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 | 🔓 | `GET /api/receitas/{id}/fotos` | Fotos dos comentários e avaliações, paginadas do mais novo ao mais antigo. |
 | 🔑 | `POST /api/receitas/{id}/comentarios` | Comenta (com foto opcional). |
 | 🔑 | `DELETE /api/comentarios/{id}` | Exclui (autor ou moderação). |
-| 🔑 | `POST /api/uploads` | Envia uma foto (`multipart`, campo `arquivo`, PNG/JPG/WEBP até 5 MB). Devolve a `url`. |
+| 🔑 | `POST /api/uploads` | Envia uma foto (`multipart`, campo `arquivo`, PNG/JPG/WEBP até 5 MB). Devolve a `url`; há limite de 25 arquivos e 100 MB por conta e limite global configurável. |
+| 🔑 | `DELETE /api/uploads/{nome}` | Remove arquivo sem uso pertencente à conta; uploads órfãos também são limpos diariamente após 24 horas. |
 | 🔑 | `POST /api/denuncias` | Denuncia um usuário (`nomeUsuario`) ou um comentário (`idComentario`). |
 
 **Moderação** 🛡️
@@ -138,13 +136,13 @@ Legenda: 🔓 público · 🔑 precisa de login · 🛡️ só moderação.
 | Método e rota | O que faz |
 |---|---|
 | `GET /api/moderacao/resumo` | Números do painel. |
-| `GET /api/moderacao/receitas` | Fila de curadoria. |
+| `GET /api/moderacao/receitas?pagina=0&tamanho=20` | Página da fila de curadoria (máximo 50 itens). |
 | `POST /api/moderacao/receitas/{id}/aprovar` · `/recusar` | Decide uma receita. |
 | `POST /api/moderacao/comentarios/{id}/ocultar` · `/restaurar` | Esconde ou devolve um comentário. |
-| `GET /api/moderacao/denuncias` | Denúncias abertas. |
-| `POST /api/moderacao/denuncias/{id}/resolver` | Marca a denúncia como resolvida. |
-| `GET /api/moderacao/usuarios` | Usuários com denúncias abertas. |
-| `GET /api/moderacao/usuarios/gestao?q=` | Lista usuários para gestão, com busca por nome, nome de usuário ou e-mail. |
+| `GET /api/moderacao/denuncias?pagina=0&tamanho=20` | Página de denúncias abertas (máximo 50 itens). |
+| `POST /api/moderacao/denuncias/{id}/resolver?ocultarComentario=true` | Resolve a denúncia e, opcionalmente, oculta o comentário na mesma transação. |
+| `GET /api/moderacao/usuarios?pagina=0&tamanho=20` | Página de usuários com denúncias abertas. |
+| `GET /api/moderacao/usuarios/gestao?q=&pagina=0&tamanho=20` | Página de usuários para gestão, com busca no banco. |
 | `POST /api/moderacao/usuarios/{id}/suspender` · `/reativar` | Suspende ou reativa. Conta suspensa não entra nem publica. |
 
 Erros seguem o formato *Problem Details*. Em erros de validação, o campo `campos` traz a mensagem de cada campo, pronta para mostrar no formulário:

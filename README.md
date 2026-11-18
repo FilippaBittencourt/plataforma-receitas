@@ -20,7 +20,7 @@ No primeiro, inicie a API e o banco de dados:
 
 ```bash
 cd backend
-./mvnw spring-boot:run
+APP_DEMO_ATIVO=true ./mvnw spring-boot:run
 ```
 
 No segundo, inicie o site:
