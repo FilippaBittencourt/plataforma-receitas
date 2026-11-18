@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { criteriaLabels, type Criteria, type Recipe } from "@/lib/mock-data";
 import { getRecipe } from "@/lib/recipes-api";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/use-auth";
 
@@ -19,8 +19,9 @@ export const Route = createFileRoute("/receita/$recipeId_/avaliar")({
   loader: async ({ params }) => {
     try {
       return { recipe: await getRecipe(params.recipeId) };
-    } catch {
-      throw notFound();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) throw notFound();
+      throw error;
     }
   },
   head: ({ loaderData }) => ({

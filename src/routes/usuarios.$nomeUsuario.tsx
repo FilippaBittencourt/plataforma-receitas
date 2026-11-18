@@ -5,7 +5,7 @@ import { Shell } from "@/components/site/Shell";
 import { ProfileHeader } from "@/components/site/ProfileHeader";
 import { RecipeCard } from "@/components/site/RecipeCard";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { requestText, toast } from "@/lib/feedback";
 import { toRecipe, type RecipeDto } from "@/lib/recipes-api";
 import type { Recipe } from "@/lib/mock-data";
@@ -32,8 +32,9 @@ export const Route = createFileRoute("/usuarios/$nomeUsuario")({
   loader: async ({ params }) => {
     try {
       return await api<PublicProfile>(`/api/usuarios/${encodeURIComponent(params.nomeUsuario)}`);
-    } catch {
-      throw notFound();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) throw notFound();
+      throw error;
     }
   },
   head: ({ loaderData }) => ({

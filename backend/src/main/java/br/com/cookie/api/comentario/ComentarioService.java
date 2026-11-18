@@ -56,7 +56,7 @@ public class ComentarioService {
     /** O autor apaga o próprio comentário; a moderação apaga qualquer um. */
     @Transactional
     public void excluir(Jwt jwt, Integer idComentario) {
-        Usuario usuario = usuarios.logado(jwt);
+        Usuario usuario = usuarios.ativo(jwt);
         var comentario = comentarios.findById(idComentario)
                 .orElseThrow(() -> ApiException.naoEncontrado("Comentário não encontrado."));
         if (!(comentario.getAutor().getId().equals(usuario.getId()) || usuario.isAdministrador())) {

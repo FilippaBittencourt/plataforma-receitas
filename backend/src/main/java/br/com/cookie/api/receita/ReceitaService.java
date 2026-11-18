@@ -116,7 +116,7 @@ public class ReceitaService {
 
     @Transactional
     public void excluir(Jwt jwt, Integer id) {
-        Usuario usuario = usuarios.logado(jwt);
+        Usuario usuario = usuarios.ativo(jwt);
         Receita receita = receitas.findById(id).orElseThrow(ReceitaService::naoEncontrada);
         if (!(receita.isDoAutor(usuario) || usuario.isAdministrador())) {
             throw ApiException.proibido("Só quem publicou ou a moderação pode excluir a receita.");

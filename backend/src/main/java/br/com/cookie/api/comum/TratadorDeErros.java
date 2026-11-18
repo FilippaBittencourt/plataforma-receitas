@@ -8,6 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -46,11 +49,28 @@ public class TratadorDeErros {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE, "O arquivo precisa ter até 5 MB.");
     }
 
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    ProblemDetail naoEncontrado(Exception e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Recurso não encontrado.");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ProblemDetail metodoNaoPermitido(HttpRequestMethodNotSupportedException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.METHOD_NOT_ALLOWED, "Método não permitido.");
+    }
+
     // Última barreira: as regras já são validadas antes, mas o banco garante (CHECK, UNIQUE, FK).
     @ExceptionHandler(DataIntegrityViolationException.class)
     ProblemDetail integridade(DataIntegrityViolationException e) {
         log.warn("Violação de integridade: {}", e.getMostSpecificCause().getMessage());
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "Os dados conflitam com informações já cadastradas.");
+    }
+
+    @ExceptionHandler(Exception.class)
+    ProblemDetail inesperado(Exception e) {
+        log.error("Erro inesperado ao processar requisição", e);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Não foi possível concluir a solicitação agora.");
     }
 }
